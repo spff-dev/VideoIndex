@@ -306,49 +306,112 @@ app.MapDelete("/api/roots/{id:int}", async (int id, IDbContextFactory<VideoIndex
     return Results.Ok(new { deleted = true });
 });
 
-
-// ---------- NAV: prev/next (with optional "untagged only") ----------
+// ---------- NAV: prev/next (with optional "untagged only" / "tagged only") ----------
 app.MapGet("/api/media/nav", async (
     IDbContextFactory<VideoIndexDbContext> dbFactory,
     int id,
-    bool? untaggedOnly
+    bool? untaggedOnly,
+    bool? taggedOnly
 ) =>
 {
     await using var db = await dbFactory.CreateDbContextAsync();
 
     IQueryable<MediaFile> q = db.MediaFiles.AsNoTracking();
+    List<int> ids;
 
-    if (untaggedOnly == true)
+    bool u = untaggedOnly == true;
+    bool t = taggedOnly == true;
+
+    if (u && !t)
     {
-        // "Untagged" = no user-provided metadata yet
-        q = q.Where(m =>
-            (m.SourceTypes == null || m.SourceTypes.Count == 0) &&
-            (m.OrientationTags == null || m.OrientationTags.Count == 0) &&
-            (m.OtherTags == null || m.OtherTags.Count == 0) &&
-            (m.PerformerNames == null || m.PerformerNames.Count == 0) &&
-            m.PerformerCount == null &&
-            m.Year == null &&
-            (m.StudioName == null || m.StudioName == "") &&
-            (m.SourceUsername == null || m.SourceUsername == "")
-        );
+        // Filter to UNTAGGED in memory (SQLite can't translate List<T>.Count == 0)
+        var rows = await q.Select(m => new
+        {
+            m.Id,
+            m.SourceTypes,
+            m.OrientationTags,
+            m.OtherTags,
+            m.PerformerNames,
+            m.PerformerCount,
+            m.Year,
+            m.StudioName,
+            m.SourceUsername
+        }).ToListAsync();
+
+        ids = rows.Where(m =>
+                (m.SourceTypes == null || m.SourceTypes.Count == 0) &&
+                (m.OrientationTags == null || m.OrientationTags.Count == 0) &&
+                (m.OtherTags == null || m.OtherTags.Count == 0) &&
+                (m.PerformerNames == null || m.PerformerNames.Count == 0) &&
+                m.PerformerCount == null &&
+                m.Year == null &&
+                string.IsNullOrEmpty(m.StudioName) &&
+                string.IsNullOrEmpty(m.SourceUsername)
+            )
+            .Select(m => m.Id)
+            .OrderBy(x => x)
+            .ToList();
+    }
+    else if (t && !u)
+    {
+        // Filter to TAGGED in memory (opposite condition)
+        var rows = await q.Select(m => new
+        {
+            m.Id,
+            m.SourceTypes,
+            m.OrientationTags,
+            m.OtherTags,
+            m.PerformerNames,
+            m.PerformerCount,
+            m.Year,
+            m.StudioName,
+            m.SourceUsername
+        }).ToListAsync();
+
+        ids = rows.Where(m =>
+                (m.SourceTypes != null && m.SourceTypes.Count > 0) ||
+                (m.OrientationTags != null && m.OrientationTags.Count > 0) ||
+                (m.OtherTags != null && m.OtherTags.Count > 0) ||
+                (m.PerformerNames != null && m.PerformerNames.Count > 0) ||
+                m.PerformerCount != null ||
+                m.Year != null ||
+                !string.IsNullOrEmpty(m.StudioName) ||
+                !string.IsNullOrEmpty(m.SourceUsername)
+            )
+            .Select(m => m.Id)
+            .OrderBy(x => x)
+            .ToList();
+    }
+    else
+    {
+        // Either both off (normal) or both on (conflict) => treat as NO filter
+        ids = await q
+            .OrderBy(m => m.Id)
+            .Select(m => m.Id)
+            .ToListAsync();
     }
 
-    // Stable default order: UpdatedAt desc, then Id desc (ties)
-    var ids = await q
-        .OrderByDescending(m => m.UpdatedAt)
-        .ThenByDescending(m => m.Id)
-        .Select(m => m.Id)
-        .ToListAsync();
-
-    var idx = ids.IndexOf(id);
-    if (idx < 0)
+    if (ids.Count == 0)
         return Results.Ok(new { prevId = (int?)null, nextId = (int?)null });
 
-    int? prevId = idx > 0 ? ids[idx - 1] : (int?)null;
-    int? nextId = idx < ids.Count - 1 ? ids[idx + 1] : (int?)null;
+    // Nearest neighbors even if current id isn't in the filtered set
+    int idx = ids.IndexOf(id);
+    int? prevId, nextId;
+
+    if (idx >= 0)
+    {
+        prevId = idx > 0 ? ids[idx - 1] : (int?)null;
+        nextId = idx < ids.Count - 1 ? ids[idx + 1] : (int?)null;
+    }
+    else
+    {
+        prevId = ids.Where(x => x < id).Select<int, int?>(x => x).DefaultIfEmpty(null).Max();
+        nextId = ids.Where(x => x > id).Select<int, int?>(x => x).DefaultIfEmpty(null).Min();
+    }
 
     return Results.Ok(new { prevId, nextId });
 });
+
 
 // ---------- Meta distincts (updated to new fields) ----------
 app.MapGet("/api/meta/distinct", async (IDbContextFactory<VideoIndexDbContext> dbFactory, string field, int? take) =>

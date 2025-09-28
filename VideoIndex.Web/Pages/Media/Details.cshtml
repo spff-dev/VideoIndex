@@ -22,76 +22,7 @@
 @await Html.PartialAsync("_TopNav")
 
 <link rel="stylesheet" href="/css/tags.css" />
-
-<style>
-  .wrap { display:grid; grid-template-columns: 460px 1fr; gap:16px; align-items:start; }
-  .muted { color:#666; }
-  .chips { display:flex; flex-wrap:wrap; gap:.4rem; }
-  .chip { display:inline-flex; align-items:center; gap:.35rem; padding:.15rem .5rem; border:1px solid #ccc; border-radius:999px; font-size:.9rem; background:#f7f7f7; }
-  .chip.badge { background:#1f7a3f; color:#fff; border-color:#1f7a3f; }
-  .chip.on { background:#1f7a3f; border-color:#1f7a3f; color:#fff; }
-  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-  .field { display:flex; flex-direction:column; gap:6px; }
-  input[type="text"], input[type="number"], select, textarea { padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:14px; }
-  label small { color:#666; font-weight:400; }
-  .hstack { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
-  .btn { padding:8px 12px; border:1px solid #222; background:#222; color:#fff; border-radius:8px; cursor:pointer; transition: background-color .8s ease, border-color .8s ease, opacity .2s ease; text-decoration:none; display:inline-flex; align-items:center; }
-  .btn[disabled], .btn.disabled { opacity:.5; cursor:default; pointer-events:none; }
-  .btn.ghost { background:transparent; color:#222; }
-  .btn.save.idle { background:#222; border-color:#222; }
-  .btn.save.dirty { background:#c62828; border-color:#c62828; }
-  .btn.save.saved { background:#1f7a3f; border-color:#1f7a3f; }
-  .tagbtn { padding:6px 10px; border:1px solid #ccc; border-radius:999px; background:#f4f4f4; cursor:pointer; }
-  .tagbtn.on { background:#1f7a3f; border-color:#1f7a3f; color:#fff; }
-  .checkgrid { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:.35rem .75rem; }
-  .section { margin-top:1rem; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap:anywhere; word-break:break-word; }
-  .chipline { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.25rem; }
-  .chip .x { background:transparent; border:none; color:inherit; font-size:1rem; line-height:1; cursor:pointer; padding:0 .1rem; }
-  .chip .x:hover { opacity:.9; text-decoration:underline; }
-
-  /* Player (thumb → video) */
-  .player-box { position:relative; width:100%; max-width:100%; }
-  .player-thumb, .player-video { width:100%; aspect-ratio:16/9; object-fit:contain; background:#111; border-radius:8px; }
-  .play-overlay{
-    position: absolute; top: 8px; right: 8px; left: auto; bottom: auto;
-    border: none; border-radius: 999px; padding: 8px 10px; background: #222a; color: #fff; cursor: pointer; z-index: 2;
-  }
-  .player-actions { display:flex; gap:8px; align-items:center; margin-top:8px; }
-
-  /* Collapsible Edit panel (background over whole section) */
-  details.section {
-    border: 1px solid #ddd; border-radius: 8px; background: #f7f7f7; padding: 0; overflow: hidden;
-  }
-  details.section > summary {
-    list-style: none; cursor: pointer; user-select: none; margin: 0; padding: 10px 12px;
-    display: flex; align-items: center; gap: .5rem; background: transparent; border: 0;
-  }
-  details.section > summary::before { content: "▸"; font-size: 12px; opacity: .7; }
-  details.section[open] > summary::before { content: "▾"; }
-  details.section > .edit-body { display:block; padding:0; border-top:1px solid #e6e6e6; }
-  details.section[open] > .edit-body { padding:12px; }
-  .section h3 { margin: 0 0 6px; font-size: 1rem; }
-
-  /* Compact core grid */
-  .core dl{
-    display:grid;
-    grid-template-columns: max-content minmax(0,1fr) max-content minmax(0,1fr);
-    column-gap:16px; row-gap:4px; font-size:.95rem;
-  }
-  .core dt{ white-space:nowrap; font-weight:600; color:#444; }
-  .core dd{ margin:0; }
-  .core dl .fullrow{ grid-column:1 / -1; }
-
-  /* Dates two-up under Root */
-  .dates2{ display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; margin-top:6px; }
-  .dates2 .k{ font-weight:600; }
-
-  /* Right-column nav line */
-  .navline { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
-  .navline .left { display:flex; gap:.5rem; align-items:center; }
-  .navline .right { display:flex; gap:.5rem; align-items:center; }
-</style>
+<link rel="stylesheet" href="/css/pages/media-details.css" />
 
 <h1>@m.Filename</h1>
 
@@ -153,13 +84,17 @@
     <!-- Nav + toggle row -->
     <div class="navline">
       <div class="left">
-        <label class="hstack" title="Only navigate among items with no user-defined tags">
+        <label class="hstack" title="Only navigate among items with no user-defined tags" style="margin-right:.75rem;">
           <input type="checkbox" id="navUntagged">
           <span>Untagged only</span>
         </label>
+        <label class="hstack" title="Only navigate among items that have user-defined tags">
+          <input type="checkbox" id="navTagged">
+          <span>Tagged only</span>
+        </label>
       </div>
       <div class="right">
-        <a id="navPrev" class="btn ghost disabled" href="#" aria-disabled="true" title="No previous item">← Previous</a>
+        <a id="navPrev" class="btn ghost disabled" href="#" aria-disabled="true" title="No previous item">← Prev</a>
         <a id="navNext" class="btn ghost disabled" href="#" aria-disabled="true" title="No next item">Next →</a>
       </div>
     </div>
@@ -260,7 +195,20 @@
   const id = @m.Id;
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
+  
+  // keep tagged/untagged selection selected between pages
+  const LS_KEYS = { untagged: "vi_nav_untagged", tagged: "vi_nav_tagged" };
 
+  function loadFilterState(){
+    const u = localStorage.getItem(LS_KEYS.untagged) === "true";
+    const t = localStorage.getItem(LS_KEYS.tagged) === "true";
+    // Resolve impossible state (both true) to "no filter"
+    return (u && t) ? { u:false, t:false } : { u, t };
+  }
+  function saveFilterState(u, t){
+    localStorage.setItem(LS_KEYS.untagged, u ? "true" : "false");
+    localStorage.setItem(LS_KEYS.tagged,   t ? "true" : "false");
+  }
   // Suggestions
   async function fill(field, datalistId) {
     try {
@@ -281,7 +229,6 @@
     fill("other", "dl-other");
     fill("performers", "dl-performers");
   }
-
   // State
   const srcAllowed = ["Studio","OnlyFans","Amateur","Vintage","Webcam","Spycam","CCTV","Selfie","Social Media","Animated","Unknown"];
   const oriAllowed = ["Gay","Straight","Bi","FtM Trans","MtF Trans"];
@@ -385,29 +332,49 @@
 
   // Prev/Next nav
   async function refreshNav(){
-    const prevA = $("#navPrev"), nextA = $("#navNext");
+    const prevA = document.getElementById("navPrev");
+    const nextA = document.getElementById("navNext");
     if (!prevA || !nextA) return;
-    const only = $("#navUntagged")?.checked ? "true" : "false";
-    try{
-      const r = await fetch(`/api/media/nav?currentId=${id}&untaggedOnly=${only}`);
-      if(!r.ok) throw new Error("nav api unavailable");
-      const j = await r.json();
-      const prevId = j.prevId || null;
-      const nextId = j.nextId || null;
 
-      if (prevId) { prevA.href = `/media/${prevId}`; prevA.classList.remove("disabled"); prevA.removeAttribute("aria-disabled"); prevA.title = "Previous"; }
-      else { prevA.href="#"; prevA.classList.add("disabled"); prevA.setAttribute("aria-disabled","true"); prevA.title = "No previous item"; }
+    const u = document.getElementById("navUntagged")?.checked === true;
+    const t = document.getElementById("navTagged")?.checked === true;
 
-      if (nextId) { nextA.href = `/media/${nextId}`; nextA.classList.remove("disabled"); nextA.removeAttribute("aria-disabled"); nextA.title = "Next"; }
-      else { nextA.href="#"; nextA.classList.add("disabled"); nextA.setAttribute("aria-disabled","true"); nextA.title = "No next item"; }
-    } catch {
-      // Keep them visible but disabled with a helpful title
-      [prevA, nextA].forEach(a=>{
+    function setNavLink(a, targetId, enabledTitle, disabledTitle){
+      if (targetId != null) {
+        a.href = `/media/${targetId}`;
+        a.classList.remove("disabled");
+        a.removeAttribute("aria-disabled");
+        a.removeAttribute("tabindex");
+        if (enabledTitle) a.title = enabledTitle;
+      } else {
         a.href = "#";
         a.classList.add("disabled");
         a.setAttribute("aria-disabled","true");
-        a.title = "Navigation not available";
-      });
+        a.setAttribute("tabindex","-1");
+        if (disabledTitle) a.title = disabledTitle;
+      }
+    }
+
+    try{
+      const r = await fetch(`/api/media/nav?id=${id}&untaggedOnly=${u ? "true" : "false"}&taggedOnly=${t ? "true" : "false"}`);
+      if(!r.ok){
+        console.debug("nav: HTTP error", r.status);
+        setNavLink(prevA, null, null, "Navigation not available");
+        setNavLink(nextA, null, null, "Navigation not available");
+        return;
+      }
+      const j = await r.json();
+      const prevId = j?.prevId ?? null;
+      const nextId = j?.nextId ?? null;
+
+      console.debug("nav:", { id, untaggedOnly: u, taggedOnly: t, prevId, nextId });
+
+      setNavLink(prevA, prevId, "Previous", "No previous item");
+      setNavLink(nextA, nextId, "Next",     "No next item");
+    } catch (e) {
+      console.debug("nav: exception", e);
+      setNavLink(prevA, null, null, "Navigation not available");
+      setNavLink(nextA, null, null, "Navigation not available");
     }
   }
 
@@ -434,7 +401,26 @@
     setSaveState("idle");
 
     // Prev/Next
-    $("#navUntagged")?.addEventListener("change", refreshNav);
+    // Sticky filter checkboxes (mutually exclusive)
+    const navUntagged = document.getElementById("navUntagged");
+    const navTagged   = document.getElementById("navTagged");
+
+    (function initSticky(){
+      const { u, t } = loadFilterState();
+      if (navUntagged) navUntagged.checked = u;
+      if (navTagged)   navTagged.checked   = t;
+    })();
+
+    function applyMutualExclusivity(changed){
+      if (!navUntagged || !navTagged) return;
+      if (changed === "u" && navUntagged.checked) { navTagged.checked = false; }
+      if (changed === "t" && navTagged.checked)   { navUntagged.checked = false; }
+      saveFilterState(navUntagged.checked, navTagged.checked);
+      refreshNav();
+    }
+
+    navUntagged?.addEventListener("change", () => applyMutualExclusivity("u"));
+    navTagged?.addEventListener("change",   () => applyMutualExclusivity("t"));
     refreshNav();
 
     // Quick PC buttons
@@ -465,7 +451,7 @@
       el?.addEventListener("input", markDirty);
     });
 
-    // Other tags input: comma or Enter; backspace pops
+    // Other tags input
     const otherInput = $("#otherTagsInput");
     otherInput.addEventListener("keydown", (e)=>{
       if (e.key === "," || e.key === "Enter") {
@@ -519,6 +505,42 @@
       statusEl.textContent = "error: " + e.message;
     } finally { saveBtn.disabled = false; }
   });
+</script>
+
+<script>
+// Arrow key navigation (disabled while editing inputs or when the player is playing)
+(function(){
+  function isEditableTarget(el){
+    if (!el) return false;
+    const t = el.tagName?.toLowerCase();
+    if (t === 'input' || t === 'textarea' || t === 'select') return true;
+    if (el.isContentEditable) return true;
+    if (el.getAttribute && el.getAttribute('role') === 'textbox') return true;
+    return false;
+  }
+  function isPlayerActive(){
+    const video = document.getElementById('vi_video');
+    if (!video) return false;
+    const visible = video.style.display !== 'none';
+    const playing = typeof video.paused === 'boolean' ? !video.paused && !video.ended : visible;
+    return visible && playing;
+  }
+  function isEnabledLink(a){
+    return a && !a.classList.contains('disabled') && a.getAttribute('href') && a.getAttribute('href') !== '#';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (isEditableTarget(e.target) || isPlayerActive()) return;
+
+    if (e.key === 'ArrowLeft') {
+      const prevA = document.getElementById('navPrev');
+      if (isEnabledLink(prevA)) { e.preventDefault(); window.location.href = prevA.href; }
+    } else if (e.key === 'ArrowRight') {
+      const nextA = document.getElementById('navNext');
+      if (isEnabledLink(nextA)) { e.preventDefault(); window.location.href = nextA.href; }
+    }
+  }, { passive: false });
+})();
 </script>
 
 <script>
