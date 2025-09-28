@@ -1,0 +1,585 @@
+@page "/media/{id:int}"
+@model VideoIndex.Web.Pages.Media.DetailsModel
+
+@{
+    ViewData["Title"] = "Media Details";
+    var m = Model.Item!;
+    var initSrc = m.SourceTypes ?? new List<string>();
+    var initOri = m.OrientationTags ?? new List<string>();
+    var initOther = m.OtherTags ?? new List<string>();
+    var initPerf = m.PerformerNames ?? new List<string>();
+
+    string PerformerBadge(int? pc)
+    {
+        if (pc is null) return "—";
+        if (pc == 1) return "Solo";
+        if (pc == 2) return "Duo";
+        if (pc >= 3) return "Group";
+        return "—";
+    }
+}
+
+@await Html.PartialAsync("_TopNav")
+
+<link rel="stylesheet" href="/css/tags.css" />
+
+<style>
+  .wrap { display:grid; grid-template-columns: 460px 1fr; gap:16px; align-items:start; }
+  .muted { color:#666; }
+  .chips { display:flex; flex-wrap:wrap; gap:.4rem; }
+  .chip { display:inline-flex; align-items:center; gap:.35rem; padding:.15rem .5rem; border:1px solid #ccc; border-radius:999px; font-size:.9rem; background:#f7f7f7; }
+  .chip.badge { background:#1f7a3f; color:#fff; border-color:#1f7a3f; }
+  .chip.on { background:#1f7a3f; border-color:#1f7a3f; color:#fff; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  input[type="text"], input[type="number"], select, textarea { padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:14px; }
+  label small { color:#666; font-weight:400; }
+  .hstack { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .btn { padding:8px 12px; border:1px solid #222; background:#222; color:#fff; border-radius:8px; cursor:pointer; transition: background-color .8s ease, border-color .8s ease, opacity .2s ease; text-decoration:none; display:inline-flex; align-items:center; }
+  .btn[disabled], .btn.disabled { opacity:.5; cursor:default; pointer-events:none; }
+  .btn.ghost { background:transparent; color:#222; }
+  .btn.save.idle { background:#222; border-color:#222; }
+  .btn.save.dirty { background:#c62828; border-color:#c62828; }
+  .btn.save.saved { background:#1f7a3f; border-color:#1f7a3f; }
+  .tagbtn { padding:6px 10px; border:1px solid #ccc; border-radius:999px; background:#f4f4f4; cursor:pointer; }
+  .tagbtn.on { background:#1f7a3f; border-color:#1f7a3f; color:#fff; }
+  .checkgrid { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:.35rem .75rem; }
+  .section { margin-top:1rem; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap:anywhere; word-break:break-word; }
+  .chipline { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.25rem; }
+  .chip .x { background:transparent; border:none; color:inherit; font-size:1rem; line-height:1; cursor:pointer; padding:0 .1rem; }
+  .chip .x:hover { opacity:.9; text-decoration:underline; }
+
+  /* Player (thumb → video) */
+  .player-box { position:relative; width:100%; max-width:100%; }
+  .player-thumb, .player-video { width:100%; aspect-ratio:16/9; object-fit:contain; background:#111; border-radius:8px; }
+  .play-overlay{
+    position: absolute; top: 8px; right: 8px; left: auto; bottom: auto;
+    border: none; border-radius: 999px; padding: 8px 10px; background: #222a; color: #fff; cursor: pointer; z-index: 2;
+  }
+  .player-actions { display:flex; gap:8px; align-items:center; margin-top:8px; }
+
+  /* Collapsible Edit panel (background over whole section) */
+  details.section {
+    border: 1px solid #ddd; border-radius: 8px; background: #f7f7f7; padding: 0; overflow: hidden;
+  }
+  details.section > summary {
+    list-style: none; cursor: pointer; user-select: none; margin: 0; padding: 10px 12px;
+    display: flex; align-items: center; gap: .5rem; background: transparent; border: 0;
+  }
+  details.section > summary::before { content: "▸"; font-size: 12px; opacity: .7; }
+  details.section[open] > summary::before { content: "▾"; }
+  details.section > .edit-body { display:block; padding:0; border-top:1px solid #e6e6e6; }
+  details.section[open] > .edit-body { padding:12px; }
+  .section h3 { margin: 0 0 6px; font-size: 1rem; }
+
+  /* Compact core grid */
+  .core dl{
+    display:grid;
+    grid-template-columns: max-content minmax(0,1fr) max-content minmax(0,1fr);
+    column-gap:16px; row-gap:4px; font-size:.95rem;
+  }
+  .core dt{ white-space:nowrap; font-weight:600; color:#444; }
+  .core dd{ margin:0; }
+  .core dl .fullrow{ grid-column:1 / -1; }
+
+  /* Dates two-up under Root */
+  .dates2{ display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; margin-top:6px; }
+  .dates2 .k{ font-weight:600; }
+
+  /* Right-column nav line */
+  .navline { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+  .navline .left { display:flex; gap:.5rem; align-items:center; }
+  .navline .right { display:flex; gap:.5rem; align-items:center; }
+</style>
+
+<h1>@m.Filename</h1>
+
+<div class="wrap">
+  <!-- LEFT COLUMN -->
+  <div id="col-left">
+    <div class="player-box">
+      <img id="vi_thumb" class="player-thumb" alt="thumbnail" />
+      <video id="vi_video" class="player-video" style="display:none;" controls playsinline></video>
+      <button id="vi_toggle" type="button" class="play-overlay">Play</button>
+    </div>
+
+    <div class="player-actions">
+      <button id="vi_open"  class="btn"       type="button">Open in player</button>
+      <button id="vi_reveal" class="btn ghost" type="button">Show in folder</button>
+      <button id="vi_back2thumb" class="btn ghost" type="button" style="display:none;">Back to thumbnail</button>
+    </div>
+    <div id="vi_status" class="muted" style="margin-top:6px;"></div>
+    <div class="muted" style="margin-top:.5rem">@m.Path</div>
+
+    <div class="section core">
+      <h3>Core</h3>
+      <dl>
+        <dt>Size</dt><dd>@m.SizeHuman</dd>
+        <dt>Length</dt><dd>@(m.LengthHuman ?? "—")</dd>
+        <dt>Resolution</dt><dd>@(m.Width is null || m.Height is null ? "—" : $"{m.Width}×{m.Height}")</dd>
+        <dt>Bitrate</dt><dd>@(m.BitRateHuman ?? "—")</dd>
+        <dt>Frame rate</dt><dd>@(m.FrameRate?.ToString("0.###") ?? "—")</dd>
+        <dt>Video</dt><dd>@(m.VideoFormat ?? "—")</dd>
+
+        <dt>Audio</dt>
+        <dd>
+          <span>
+            @(m.AudioFormat ?? "—")
+            @(m.AudioChannels is null ? "" : $"({m.AudioChannels}ch)")
+          </span>
+          @if (!string.IsNullOrEmpty(m.AudioBitrateHuman))
+          {
+            <span class="muted" style="display:block">@m.AudioBitrateHuman</span>
+          }
+        </dd>
+
+        <dt class="fullrow">SHA-256</dt>
+        <dd class="mono fullrow">@m.Sha256</dd>
+
+        <dt class="fullrow">Root</dt>
+        <dd class="fullrow">@m.Root <span class="muted">(@m.RootPath)</span></dd>
+      </dl>
+
+      <div class="dates2">
+        <div><span class="k">Created</span> <span>@m.CreatedAt.LocalDateTime</span></div>
+        <div><span class="k">Updated</span> <span>@m.UpdatedAt.LocalDateTime</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div id="col-right">
+    <!-- Nav + toggle row -->
+    <div class="navline">
+      <div class="left">
+        <label class="hstack" title="Only navigate among items with no user-defined tags">
+          <input type="checkbox" id="navUntagged">
+          <span>Untagged only</span>
+        </label>
+      </div>
+      <div class="right">
+        <a id="navPrev" class="btn ghost disabled" href="#" aria-disabled="true" title="No previous item">← Previous</a>
+        <a id="navNext" class="btn ghost disabled" href="#" aria-disabled="true" title="No next item">Next →</a>
+      </div>
+    </div>
+
+    <!-- Tag summary bar -->
+    <div class="chips" id="summaryChips">
+      <span class="chip badge" id="perfBadge">@PerformerBadge(m.PerformerCount)</span>
+      @foreach (var s in initOri) { <span class="chip ori">@s</span> }
+      @foreach (var s in initSrc) { <span class="chip src">@s</span> }
+      @foreach (var s in initOther) { <span class="chip other">@s</span> }
+    </div>
+
+    <details id="editBox" class="section">
+      <summary><strong id="editSummaryText">Edit details (click to open)</strong></summary>
+      <div class="edit-body">
+        <div class="grid2" style="margin-top:8px;">
+          <div class="field">
+            <label>Performer count <small>(Solo/Duo/Group derived)</small></label>
+            <div class="hstack">
+              <input id="performerCount" type="number" min="0" value="@(m.PerformerCount?.ToString() ?? "")" style="width:7rem">
+              <button type="button" class="btn ghost pcbtn" data-pc="1">Solo</button>
+              <button type="button" class="btn ghost pcbtn" data-pc="2">Duo</button>
+              <button type="button" class="btn ghost pcbtn" data-pc="3">Group</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Year</label>
+            <input id="year" type="number" min="1900" max="2100" value="@(m.Year?.ToString() ?? "")">
+          </div>
+
+          <div class="field" style="grid-column:1 / -1;">
+            <label>Orientation <small>(multi-select)</small></label>
+            <div class="checkgrid" id="oriGroup">
+              <button type="button" class="tagbtn" data-ori="Gay">Gay</button>
+              <button type="button" class="tagbtn" data-ori="Straight">Straight</button>
+              <button type="button" class="tagbtn" data-ori="Bi">Bi</button>
+              <button type="button" class="tagbtn" data-ori="FtM Trans">FtM Trans</button>
+              <button type="button" class="tagbtn" data-ori="MtF Trans">MtF Trans</button>
+            </div>
+          </div>
+
+          <div class="field" style="grid-column:1 / -1;">
+            <label>Source Type <small>(multi-select)</small></label>
+            <div class="checkgrid" id="srcGroup">
+              <button type="button" class="tagbtn" data-src="Studio">Studio</button>
+              <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
+              <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
+              <button type="button" class="tagbtn" data-src="Vintage">Vintage</button>
+              <button type="button" class="tagbtn" data-src="Webcam">Webcam</button>
+              <button type="button" class="tagbtn" data-src="Spycam">Spycam</button>
+              <button type="button" class="tagbtn" data-src="CCTV">CCTV</button>
+              <button type="button" class="tagbtn" data-src="Selfie">Selfie</button>
+              <button type="button" class="tagbtn" data-src="Social Media">Social Media</button>
+              <button type="button" class="tagbtn" data-src="Animated">Animated</button>
+              <button type="button" class="tagbtn" data-src="Unknown">Unknown</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Studio name <small>(enabled when Source Type includes Studio)</small></label>
+            <input id="studioName" type="text" list="dl-studio" value="@(m.StudioName ?? "")" placeholder="e.g., A24, Acme…">
+            <datalist id="dl-studio"></datalist>
+          </div>
+
+          <div class="field">
+            <label>Source user <small>(OnlyFans / Social Media)</small></label>
+            <input id="sourceUser" type="text" value="@(m.SourceUsername ?? "")">
+          </div>
+
+          <div class="field" style="grid-column:1 / -1;">
+            <label>Other tags <small>(comma-separated)</small></label>
+            <input id="otherTagsInput" type="text" list="dl-other" placeholder="black-and-white, remaster, …">
+            <datalist id="dl-other"></datalist>
+            <div id="otherChips" class="chipline"></div>
+            <div class="muted">Type a tag and press <b>,</b> or <b>Enter</b> to commit. Backspace removes last chip.</div>
+          </div>
+
+          <div class="field" style="grid-column:1 / -1;">
+            <label>Performers <small>(comma-separated)</small></label>
+            <input id="performersInput" type="text" list="dl-performers" placeholder="dean winchester, mike read">
+            <datalist id="dl-performers"></datalist>
+            <div id="performerChips" class="chipline"></div>
+            <div class="muted">Press <b>,</b> to commit a name. Backspace removes last chip.</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <button id="saveBtn" class="btn save idle">Save</button>
+          <span id="saveStatus" class="muted" style="margin-left:.5rem;"></span>
+        </div>
+      </div><!-- /.edit-body -->
+    </details>
+  </div>
+</div>
+
+<script>
+  const id = @m.Id;
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+
+  // Suggestions
+  async function fill(field, datalistId) {
+    try {
+      const res = await fetch(`/api/meta/distinct?field=${encodeURIComponent(field)}&take=100`);
+      if (!res.ok) return;
+      const arr = await res.json();
+      const dl = document.getElementById(datalistId); if (!dl) return;
+      dl.innerHTML = "";
+      for (const it of arr) {
+        const opt = document.createElement("option");
+        opt.value = it.value;
+        dl.appendChild(opt);
+      }
+    } catch {}
+  }
+  function refreshSuggestions() {
+    fill("studio", "dl-studio");
+    fill("other", "dl-other");
+    fill("performers", "dl-performers");
+  }
+
+  // State
+  const srcAllowed = ["Studio","OnlyFans","Amateur","Vintage","Webcam","Spycam","CCTV","Selfie","Social Media","Animated","Unknown"];
+  const oriAllowed = ["Gay","Straight","Bi","FtM Trans","MtF Trans"];
+  let sourceTypesSel = new Set(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(initSrc)));
+  let orientationSel = new Set(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(initOri)));
+  let otherTagsArr = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initOther));
+  let performersArr = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initPerf));
+
+  // Utils
+  function badgeFromCount(pc){ if(pc===1) return "Solo"; if(pc===2) return "Duo"; if(pc>=3) return "Group"; return "—"; }
+  function normToken(s){ return s.trim().replace(/\s+/g,' '); }
+  function addToken(arr,t){ const v=normToken(t); if(!v) return; if(!arr.some(x=>x.localeCompare(v,undefined,{sensitivity:'accent'})===0)) arr.push(v); markDirty(); }
+  function findIndexCI(arr,t){ return arr.findIndex(x=>x.localeCompare(t,undefined,{sensitivity:'accent'})===0); }
+  function removeToken(arr,t){ const i=findIndexCI(arr,t); if(i>=0) arr.splice(i,1); markDirty(); }
+
+  // Save button state
+  const saveBtn = $("#saveBtn");
+  const statusEl = $("#saveStatus");
+  let initialSnapshot = null;
+  function snapshotDto(){
+    const yearV = ($("#year").value || "").trim();
+    const pcV = ($("#performerCount").value || "").trim();
+    return {
+      sourceTypes: [...sourceTypesSel].slice().sort(),
+      orientationTags: [...orientationSel].slice().sort(),
+      otherTags: otherTagsArr.map(normToken).filter(Boolean).slice().sort(),
+      performers: performersArr.map(normToken).filter(Boolean).slice().sort(),
+      studioName: ($("#studioName").value || "").trim() || null,
+      sourceUsername: ($("#sourceUser").value || "").trim() || null,
+      year: yearV ? parseInt(yearV,10) : null,
+      performerCount: pcV ? (Number.isNaN(parseInt(pcV,10)) ? null : parseInt(pcV,10)) : null
+    };
+  }
+  function eq(a,b){ return JSON.stringify(a) === JSON.stringify(b); }
+  function setSaveState(state){
+    saveBtn.classList.remove("idle","dirty","saved");
+    saveBtn.classList.add(state);
+  }
+  function markDirty(){
+    if (!initialSnapshot) return;
+    const cur = snapshotDto();
+    setSaveState(eq(initialSnapshot, cur) ? "idle" : "dirty");
+  }
+
+  function renderPcButtons(){
+    const pc = parseInt($("#performerCount").value || "NaN", 10);
+    $$(".pcbtn").forEach(b=>{
+      const v = parseInt(b.getAttribute("data-pc"), 10);
+      const on = (v === pc);
+      b.classList.toggle("on", on);
+      b.style.background = on ? "#1f7a3f" : "transparent";
+      b.style.borderColor = on ? "#1f7a3f" : "#222";
+      b.style.color = on ? "#fff" : "#222";
+    });
+  }
+  function renderTagButtons(){
+    $$("#oriGroup .tagbtn").forEach(btn=> btn.classList.toggle("on", orientationSel.has(btn.getAttribute("data-ori"))));
+    $$("#srcGroup .tagbtn").forEach(btn=> btn.classList.toggle("on", sourceTypesSel.has(btn.getAttribute("data-src"))));
+  }
+  function renderOtherChips(){
+    const holder = $("#otherChips"); holder.innerHTML="";
+    otherTagsArr.forEach(t=>{
+      const s = document.createElement("span"); s.className="chip other"; s.textContent=t;
+      const x = document.createElement("button"); x.type="button"; x.className="x"; x.setAttribute("data-remove-other",t); x.textContent="×";
+      s.appendChild(x); holder.appendChild(s);
+    });
+  }
+  function renderPerformerChips(){
+    const holder = $("#performerChips"); holder.innerHTML="";
+    performersArr.forEach(t=>{
+      const s = document.createElement("span"); s.className="chip"; s.textContent=t;
+      const x = document.createElement("button"); x.type="button"; x.className="x"; x.setAttribute("data-remove-perf",t); x.textContent="×";
+      s.appendChild(x); holder.appendChild(s);
+    });
+  }
+  function renderSummary(){
+    const wrap = $("#summaryChips"); if (!wrap) return;
+    const pc = parseInt($("#performerCount").value || "NaN", 10);
+    wrap.innerHTML = "";
+    const b = document.createElement("span"); b.className="chip badge"; b.textContent=badgeFromCount(Number.isNaN(pc)?null:pc); wrap.appendChild(b);
+    for (const v of orientationSel){ const c=document.createElement("span"); c.className="chip ori"; c.textContent=v; wrap.appendChild(c); }
+    for (const v of sourceTypesSel){ const c=document.createElement("span"); c.className="chip src"; c.textContent=v; wrap.appendChild(c); }
+    for (const v of otherTagsArr){ const c=document.createElement("span"); c.className="chip other"; c.textContent=v; wrap.appendChild(c); }
+  }
+  function updateConditionals(){
+    $("#studioName").disabled = !sourceTypesSel.has("Studio");
+    const userOn = sourceTypesSel.has("OnlyFans") || sourceTypesSel.has("Social Media");
+    $("#sourceUser").disabled = !userOn;
+  }
+  function hasAnyEditData(){
+    const hasYear   = !!($("#year")?.value || "").trim();
+    const hasPC     = !!($("#performerCount")?.value || "").trim();
+    const hasStudio = !!($("#studioName")?.value || "").trim();
+    const hasUser   = !!($("#sourceUser")?.value || "").trim();
+    const hasSrc    = sourceTypesSel.size > 0;
+    const hasOri    = orientationSel.size > 0;
+    const hasOther  = otherTagsArr.length > 0;
+    const hasPerf   = performersArr.length > 0;
+    return hasYear || hasPC || hasStudio || hasUser || hasSrc || hasOri || hasOther || hasPerf;
+  }
+
+  // Prev/Next nav
+  async function refreshNav(){
+    const prevA = $("#navPrev"), nextA = $("#navNext");
+    if (!prevA || !nextA) return;
+    const only = $("#navUntagged")?.checked ? "true" : "false";
+    try{
+      const r = await fetch(`/api/media/nav?currentId=${id}&untaggedOnly=${only}`);
+      if(!r.ok) throw new Error("nav api unavailable");
+      const j = await r.json();
+      const prevId = j.prevId || null;
+      const nextId = j.nextId || null;
+
+      if (prevId) { prevA.href = `/media/${prevId}`; prevA.classList.remove("disabled"); prevA.removeAttribute("aria-disabled"); prevA.title = "Previous"; }
+      else { prevA.href="#"; prevA.classList.add("disabled"); prevA.setAttribute("aria-disabled","true"); prevA.title = "No previous item"; }
+
+      if (nextId) { nextA.href = `/media/${nextId}`; nextA.classList.remove("disabled"); nextA.removeAttribute("aria-disabled"); nextA.title = "Next"; }
+      else { nextA.href="#"; nextA.classList.add("disabled"); nextA.setAttribute("aria-disabled","true"); nextA.title = "No next item"; }
+    } catch {
+      // Keep them visible but disabled with a helpful title
+      [prevA, nextA].forEach(a=>{
+        a.href = "#";
+        a.classList.add("disabled");
+        a.setAttribute("aria-disabled","true");
+        a.title = "Navigation not available";
+      });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    refreshSuggestions();
+    renderTagButtons(); renderPcButtons(); renderOtherChips(); renderPerformerChips(); renderSummary(); updateConditionals();
+
+    // Collapsible label
+    const box = document.getElementById("editBox");
+    const label = document.getElementById("editSummaryText");
+    function refreshEditSummary(){
+      if (!box || !label) return;
+      label.textContent = box.open ? "Hide details" : "Edit details (click to open)";
+    }
+    if (box && label) {
+      const anyData = hasAnyEditData();
+      box.open = !anyData;
+      refreshEditSummary();
+      box.addEventListener("toggle", refreshEditSummary);
+    }
+
+    // Initialize save snapshot/state
+    initialSnapshot = snapshotDto();
+    setSaveState("idle");
+
+    // Prev/Next
+    $("#navUntagged")?.addEventListener("change", refreshNav);
+    refreshNav();
+
+    // Quick PC buttons
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest('.pcbtn'); if (!btn) return;
+      $("#performerCount").value = String(parseInt(btn.getAttribute("data-pc"),10));
+      renderPcButtons(); renderSummary(); markDirty();
+    });
+    $("#performerCount").addEventListener("input", ()=>{ renderPcButtons(); renderSummary(); markDirty(); });
+
+    // Orientation & SourceType
+    $("#oriGroup").addEventListener("click", (e)=>{
+      const btn = e.target.closest('.tagbtn'); if (!btn) return;
+      const val = btn.getAttribute("data-ori"); if (!val) return;
+      if (orientationSel.has(val)) orientationSel.delete(val); else orientationSel.add(val);
+      renderTagButtons(); renderSummary(); markDirty();
+    });
+    $("#srcGroup").addEventListener("click", (e)=>{
+      const btn = e.target.closest('.tagbtn'); if (!btn) return;
+      const val = btn.getAttribute("data-src"); if (!val) return;
+      if (sourceTypesSel.has(val)) sourceTypesSel.delete(val); else sourceTypesSel.add(val);
+      renderTagButtons(); renderSummary(); updateConditionals(); markDirty();
+    });
+
+    // Text inputs
+    ["#year","#studioName","#sourceUser"].forEach(sel=>{
+      const el = document.querySelector(sel);
+      el?.addEventListener("input", markDirty);
+    });
+
+    // Other tags input: comma or Enter; backspace pops
+    const otherInput = $("#otherTagsInput");
+    otherInput.addEventListener("keydown", (e)=>{
+      if (e.key === "," || e.key === "Enter") {
+        e.preventDefault();
+        const v = otherInput.value;
+        if (v.trim() !== "") { addToken(otherTagsArr, v); otherInput.value = ""; renderOtherChips(); renderSummary(); }
+      } else if (e.key === "Backspace" && otherInput.value.trim() === "" && otherTagsArr.length > 0) {
+        otherTagsArr.pop(); renderOtherChips(); renderSummary(); markDirty();
+      }
+    });
+    $("#otherChips").addEventListener("click", (e)=>{
+      const btn = e.target.closest('button[data-remove-other]'); if (!btn) return;
+      removeToken(otherTagsArr, btn.getAttribute('data-remove-other')); renderOtherChips(); renderSummary(); markDirty();
+    });
+
+    // Performers
+    const perfInput = $("#performersInput");
+    perfInput.addEventListener("keydown", (e)=>{
+      if (e.key === ",") { e.preventDefault(); addToken(performersArr, perfInput.value); perfInput.value=""; renderPerformerChips(); markDirty(); }
+      else if (e.key === "Backspace" && perfInput.value.trim()==="" && performersArr.length>0) { performersArr.pop(); renderPerformerChips(); markDirty(); }
+    });
+    $("#performerChips").addEventListener("click", (e)=>{
+      const btn = e.target.closest('button[data-remove-perf]'); if (!btn) return;
+      removeToken(performersArr, btn.getAttribute('data-remove-perf')); renderPerformerChips(); markDirty();
+    });
+  });
+
+  // Save
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    statusEl.textContent = "saving…";
+    const dto = {
+      sourceTypes: Array.from(sourceTypesSel),
+      studioName: ($("#studioName").value || "").trim() || null,
+      sourceUsername: ($("#sourceUser").value || "").trim() || null,
+      year: (function(v){ v=v.trim(); return v ? parseInt(v,10) : null; })($("#year").value || ""),
+      orientationTags: Array.from(orientationSel),
+      otherTags: otherTagsArr.join(", "),
+      performers: performersArr.join(", "),
+      performerCount: (function(v){ v=v.trim(); if(!v) return null; const n=parseInt(v,10); return Number.isNaN(n)? null : n; })($("#performerCount").value || "")
+    };
+    try {
+      const resp = await fetch(`/api/media/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dto) });
+      if (!resp.ok) throw new Error(await resp.text() || ("HTTP " + resp.status));
+      statusEl.textContent = "saved ✓";
+      initialSnapshot = snapshotDto();
+      setSaveState("saved");
+      setTimeout(()=> setSaveState("idle"), 1500);
+      refreshSuggestions();
+    } catch (e) {
+      statusEl.textContent = "error: " + e.message;
+    } finally { saveBtn.disabled = false; }
+  });
+</script>
+
+<script>
+(function(){
+  // Player wiring
+  const m = location.pathname.match(/\/media\/(\d+)(?:\/|$)/i);
+  const id = m ? parseInt(m[1],10) : null;
+  if (!id) return;
+
+  const $ = s => document.querySelector(s);
+  const thumb = $("#vi_thumb");
+  const video = $("#vi_video");
+  const toggle = $("#vi_toggle");
+  const openBtn = $("#vi_open");
+  const revealBtn = $("#vi_reveal");
+  const backBtn = $("#vi_back2thumb");
+  const status = $("#vi_status");
+
+  const thumbUrl = `/api/media/${id}/thumb?t=${Date.now()}`;
+  const streamUrl = `/api/media/${id}/stream`;
+  thumb.src = thumbUrl;
+
+  function showVideo(){
+    thumb.style.display = "none";
+    video.src = streamUrl;
+    video.style.display = "";
+    backBtn.style.display = "";
+    toggle.textContent = "Pause";
+    video.play().catch(()=>{ status.textContent = "Couldn’t start playback (codec/permissions)."; });
+  }
+  function showThumb(){
+    video.pause(); video.removeAttribute("src"); video.load();
+    video.style.display = "none";
+    backBtn.style.display = "none";
+    thumb.style.display = "";
+    toggle.textContent = "Play";
+    status.textContent = "";
+  }
+
+  toggle.addEventListener("click", ()=>{ (thumb.style.display !== "none") ? showVideo() : showThumb(); });
+  thumb.addEventListener("click", showVideo);
+  backBtn.addEventListener("click", showThumb);
+
+  async function postJson(url){
+    const r = await fetch(url, { method:"POST" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json().catch(()=> ({}));
+  }
+  openBtn.addEventListener("click", async ()=>{
+    status.textContent = "Opening in default player…";
+    try { await postJson(`/api/media/${id}/open`); status.textContent = "Opened."; }
+    catch{ status.textContent = "Failed to open."; }
+  });
+  revealBtn.addEventListener("click", async ()=>{
+    status.textContent = "Revealing in Explorer…";
+    try { await postJson(`/api/media/${id}/reveal`); status.textContent = "Revealed."; }
+    catch{ status.textContent = "Failed to reveal."; }
+  });
+
+  video.addEventListener("error", ()=>{ status.textContent = "Browser couldn’t play this file. Try “Open in player”."; });
+})();
+</script>
+
+@await Html.PartialAsync("_TopNavEnd")

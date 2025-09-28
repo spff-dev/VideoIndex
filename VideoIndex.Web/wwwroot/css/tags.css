@@ -1,0 +1,71 @@
+/* Buttons (filters/toggles) — base + unselected */
+.tagbtn {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #f4f4f4;
+  color: #222;
+  cursor: pointer;
+}
+.tagbtn.on {
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Selected colors by group */
+#oriGroup .tagbtn.on {
+  background: #d86f00;
+} /* Orientation = orange */
+#srcGroup .tagbtn.on {
+  background: #1d5fbf;
+} /* SourceType = blue  */
+/* Performer quick buttons + performer badge = green */
+.tagbtn.quick-perf.on,
+.pcbtn.on,
+.chip.badge {
+  background: #1f7a3f;
+  border-color: #1f7a3f;
+  color: #fff;
+}
+
+/* Chips (read-only labels) — base + type colors */
+.chip {
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  color: #222;
+}
+.chip.src {
+  background: #e8f0fe;
+  border-color: #c8ddff;
+  color: #1d5fbf;
+} /* blue */
+.chip.ori {
+  background: #fff1e6;
+  border-color: #ffd2a6;
+  color: #b35c00;
+} /* orange */
+.chip.other {
+  background: #f3e8ff;
+  border-color: #e1c9ff;
+  color: #6b2fb8;
+} /* purple */
+
+.chip.clickable {
+  cursor: pointer;
+}
+.chip.clickable:hover {
+  filter: brightness(0.95);
+}
+
+/* Green performer chip (card/details) */
+.chip.perf {
+  background: #1f7a3f;
+  border-color: #1f7a3f;
+  color: #fff;
+}
+
+/* Highlight chips that match active filters */
+.chip.filtered {
+  font-weight: 600;
+  filter: saturate(1.2) brightness(0.97);
+}

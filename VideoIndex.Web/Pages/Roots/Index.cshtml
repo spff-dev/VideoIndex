@@ -1,0 +1,124 @@
+@page "/roots"
+@model VideoIndex.Web.Pages.Roots.IndexModel
+@{
+    ViewData["Title"] = "Roots";
+}
+@await Html.PartialAsync("_TopNav")
+
+<h1>Roots</h1>
+<p class="muted">Add one or more folders to scan. The scanner will recurse inside them.</p>
+
+<div class="card" style="padding:12px; margin:10px 0 16px;">
+  <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:end;">
+    <div>
+      <label>Name <small>(anything you like)</small></label>
+      <input id="rootName" type="text" placeholder="e.g., Main Drive" />
+    </div>
+    <div>
+      <label>Path <small>(absolute path on this machine)</small></label>
+      <input id="rootPath" type="text" placeholder="e.g., D:\Videos or /mnt/media" />
+    </div>
+    <div>
+      <button id="addBtn" class="btn primary" type="button">Add root</button>
+    </div>
+  </div>
+  <div class="muted" style="margin-top:6px;">The path must exist on the server where this app runs.</div>
+  <div id="addErr" class="muted" style="color:#c00; margin-top:6px;"></div>
+</div>
+
+<table id="rootsTable" style="width:100%; border-collapse:collapse;">
+  <thead>
+    <tr style="text-align:left; border-bottom:1px solid #ddd;">
+      <th style="padding:8px 4px;">ID</th>
+      <th style="padding:8px 4px;">Name</th>
+      <th style="padding:8px 4px;">Path</th>
+      <th style="padding:8px 4px;">Last scanned</th>
+      <th style="padding:8px 4px;">Actions</th>
+    </tr>
+  </thead>
+  <tbody id="rootsBody"></tbody>
+</table>
+
+<div id="loadErr" class="muted" style="color:#c00; margin-top:8px;"></div>
+
+@await Html.PartialAsync("_TopNavEnd")
+
+<script>
+  const $ = s => document.querySelector(s);
+  const body = $("#rootsBody");
+  const addErr = $("#addErr");
+  const loadErr = $("#loadErr");
+
+  function escapeHtml(s){ return (s??"").toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+
+  async function load(){
+    loadErr.textContent = "";
+    body.innerHTML = `<tr><td colspan="5" class="muted" style="padding:10px;">Loading…</td></tr>`;
+    try{
+      const res = await fetch("/api/roots");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        body.innerHTML = `<tr><td colspan="5" class="muted" style="padding:10px;">No roots yet — add one above.</td></tr>`;
+        return;
+      }
+      body.innerHTML = data.map(r => {
+        const last = r.lastScannedAt ? new Date(r.lastScannedAt).toLocaleString() : "—";
+        return `
+          <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:8px 4px;">${r.id}</td>
+            <td style="padding:8px 4px;">${escapeHtml(r.name)}</td>
+            <td style="padding:8px 4px;">${escapeHtml(r.path)}</td>
+            <td style="padding:8px 4px;" class="muted">${last}</td>
+            <td style="padding:8px 4px;">
+              <a class="btn ghost" href="/scan?root=${r.id}">Scan</a>
+              <button class="btn ghost" data-del="${r.id}">Delete</button>
+            </td>
+          </tr>`;
+      }).join("");
+    }catch(e){
+      body.innerHTML = "";
+      loadErr.textContent = "Failed to load roots: " + (e.message || e);
+    }
+  }
+
+  document.addEventListener("click", async (e)=>{
+    const btn = e.target.closest("button[data-del]");
+    if (!btn) return;
+    const id = btn.getAttribute("data-del");
+    if (!confirm("Delete this root?")) return;
+    try{
+      const res = await fetch(`/api/roots/${id}`, { method:"DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      load();
+    }catch(e){
+      alert("Delete failed: " + (e.message || e));
+    }
+  });
+
+  $("#addBtn").addEventListener("click", async ()=>{
+    addErr.textContent = "";
+    const name = ($("#rootName").value || "").trim();
+    const path = ($("#rootPath").value || "").trim();
+    if (!name || !path) { addErr.textContent = "Name and Path are required."; return; }
+    try{
+      const res = await fetch("/api/roots", {
+        method:"POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, path })
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        addErr.textContent = "Add failed: " + t;
+        return;
+      }
+      $("#rootName").value = "";
+      $("#rootPath").value = "";
+      load();
+    }catch(e){
+      addErr.textContent = "Add failed: " + (e.message || e);
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", load);
+</script>

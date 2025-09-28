@@ -1,0 +1,37 @@
+# Build outputs
+bin/
+obj/
+out/
+publish/
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS cruft
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+Logs/
+
+# Client artifacts (if you add bundling later)
+wwwroot/dist/
+wwwroot/lib/
+
+# Local data (SQLite etc.)
+*.db
+*.db-shm
+*.db-wal
+
+# Rider/JetBrains
+.idea/
+
+# User secrets (only if you ever generate one)
+secrets.json

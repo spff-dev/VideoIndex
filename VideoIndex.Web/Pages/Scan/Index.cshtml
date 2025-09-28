@@ -1,0 +1,189 @@
+@page "/scan"
+@model VideoIndex.Web.Pages.Scan.IndexModel
+
+@{
+    ViewData["Title"] = "Live Scan";
+}
+
+@await Html.PartialAsync("_TopNav")
+
+<style>
+  .row { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom: .75rem; }
+  label { font-weight:600; }
+  input[type="number"] { width: 6rem; }
+  pre { background:#111; color:#ddd; padding: .75rem; border-radius: .5rem; max-height: 40vh; overflow:auto; }
+  .muted { color:#777; font-size:.9rem; }
+  .ok { color: #3fb950; }
+  .warn { color: #d29922; }
+  .err { color: #f85149; }
+</style>
+
+<h1>Live Scan</h1>
+
+<div class="row">
+  <label for="rootSelect">Root:</label>
+  <select id="rootSelect">
+    @foreach (var r in Model.Roots)
+    {
+      <option value="@r.Id">@r.Name (@r.Path)</option>
+    }
+  </select>
+
+  <label for="workers">Workers</label>
+  <input id="workers" type="number" value="8" min="1" max="24" />
+
+  <label for="thumbs">Generate thumbnails</label>
+  <input id="thumbs" type="checkbox" checked />
+
+  <label for="regenAll">Regenerate all thumbnails</label>
+  <input id="regenAll" type="checkbox" />
+
+  <button id="startBtn">Start scan</button>
+  <span id="status" class="muted">idle</span>
+</div>
+
+<div class="row" style="width:100%;">
+  <progress id="prog" value="0" max="100" style="width: 360px;"></progress>
+  <span id="counts" class="muted"></span>
+</div>
+
+<pre id="log"></pre>
+
+<script src="https://unpkg.com/%40microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
+<script>
+  const base = location.origin;
+  const $ = sel => document.querySelector(sel);
+  const logEl = $("#log");
+  const statusEl = $("#status");
+  const countsEl = $("#counts");
+  const progEl = $("#prog");
+  const startBtn = $("#startBtn");
+
+  const urlRoot = new URL(location.href).searchParams.get("root");
+document.addEventListener("DOMContentLoaded", ()=>{
+  if (urlRoot) {
+    const sel = document.querySelector("#rootSelect");
+    if (sel && [...sel.options].some(o => o.value === urlRoot)) sel.value = urlRoot;
+  }
+});
+
+  function log(msg, cls="") {
+    const time = new Date().toLocaleTimeString();
+    const line = `[${time}] ${msg}\n`;
+    const span = document.createElement("span");
+    if (cls) span.className = cls;
+    span.textContent = line;
+    logEl.appendChild(span);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setStatus(txt) { statusEl.textContent = txt; }
+
+  startBtn.addEventListener("click", async () => {
+    startBtn.disabled = true;
+    logEl.textContent = "";
+    setStatus("connecting…");
+
+    const rootId = parseInt($("#rootSelect").value, 10);
+    const workers = Math.max(1, Math.min(24, parseInt($("#workers").value, 10) || 8));
+    const thumbs = $("#thumbs").checked;
+    const regenAll = $("#regenAll").checked;
+
+    const scanId = (crypto && crypto.randomUUID) ? crypto.randomUUID() :
+                   Math.random().toString(36).slice(2);
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${base}/hubs/scan`)
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Information)
+      .build();
+
+    let totalFiles = 0;
+    let processed = 0;
+    let indexed = 0;
+    let thumbsMade = 0;
+    let errors = 0;
+
+    function updateCounts() {
+      countsEl.textContent = `${processed} / ${totalFiles} processed, indexed: ${indexed}, thumbs: ${thumbsMade}, errors: ${errors}`;
+    }
+
+    connection.on("progress", evt => {
+      switch (evt.kind) {
+        case "started":
+          totalFiles = evt.totals.files || 0;
+          processed = 0; thumbsMade = 0; errors = 0; indexed = 0;
+          progEl.max = Math.max(totalFiles, 1);
+          progEl.value = 0;
+          updateCounts();
+          setStatus("running");
+          log(`Scan started on "${evt.root.name}" (${evt.root.path}) — files: ${totalFiles}, thumbs: ${evt.totals.thumbsRequested ? "on" : "off"} (regenAll ${regenAll}), workers: ${workers}`, "muted");
+          break;
+
+        case "indexError":
+          errors++;
+          log(`Index error: ${evt.file} — ${evt.error}`, "err");
+          break;
+
+        case "thumbMade":
+          thumbsMade++;
+          log(`Thumb ✓ ${evt.file}`, "ok");
+          break;
+
+        case "thumbError":
+          log(`Thumb error: ${evt.file} — ${evt.error}`, "warn");
+          break;
+
+        case "heartbeat":
+          processed = evt.processed ?? processed;
+          thumbsMade = evt.thumbsMade ?? thumbsMade;
+          errors = evt.errors ?? errors;
+          indexed = evt.indexed ?? indexed;
+          progEl.value = processed;
+          updateCounts();
+          break;
+
+        case "completed":
+          processed = evt.processed ?? processed;
+          thumbsMade = evt.thumbsMade ?? thumbsMade;
+          errors = evt.errors ?? errors;
+          indexed = evt.indexed ?? indexed;
+          progEl.value = processed;
+          updateCounts();
+          setStatus("done");
+          log(`Completed in ${evt.elapsedMs} ms — processed: ${processed}, indexed: ${indexed}, thumbs: ${thumbsMade}, errors: ${errors}`, "ok");
+          startBtn.disabled = false;
+          break;
+      }
+    });
+
+    connection.onreconnecting(() => setStatus("reconnecting…"));
+    connection.onreconnected(() => setStatus("running"));
+    connection.onclose(() => { if (statusEl.textContent !== "done") setStatus("disconnected"); });
+
+    try {
+      await connection.start();
+      await connection.invoke("JoinScan", scanId);
+      log(`Joined scan channel ${scanId}`, "muted");
+
+      // kick off the server-side scan
+      const url = `${base}/api/roots/${rootId}/scan-live?scanId=${encodeURIComponent(scanId)}&thumbs=${thumbs}&regenAll=${regenAll}&dop=${workers}`;
+      const resp = await fetch(url, { method: "POST" });
+      if (!resp.ok) {
+        const text = await resp.text();
+        log(`Scan start failed: ${resp.status} ${text}`, "err");
+        setStatus("error");
+        startBtn.disabled = false;
+      } else {
+        const summary = await resp.json();
+        log(`Scan request accepted — total files enumerated: ${summary.scanned}`, "muted");
+      }
+    } catch (e) {
+      log(`SignalR error: ${e}`, "err");
+      setStatus("error");
+      startBtn.disabled = false;
+    }
+  });
+</script>
+
+@await Html.PartialAsync("_TopNavEnd")
