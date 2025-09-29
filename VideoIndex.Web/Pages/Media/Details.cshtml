@@ -11,26 +11,60 @@
 
     string PerformerBadge(int? pc)
     {
-        if (pc is null) return "—";
+        if (pc is null) return "n/a";
         if (pc == 1) return "Solo";
         if (pc == 2) return "Duo";
         if (pc >= 3) return "Group";
-        return "—";
+        return "n/a";
     }
+}
+
+@functions {
+  private static string WbrPath(string? path)
+  {
+    if (string.IsNullOrEmpty(path)) return "";
+    // HTML-encode first, then insert <wbr> after slashes
+    var enc = System.Net.WebUtility.HtmlEncode(path);
+    return enc.Replace("\\", "\\<wbr>").Replace("/", "/<wbr>");
+  }
 }
 
 @await Html.PartialAsync("_TopNav")
 
 <link rel="stylesheet" href="/css/tags.css" />
 <link rel="stylesheet" href="/css/pages/media-details.css" />
+<style>
+  #dirCrumbs { display:flex; flex-wrap:wrap; gap:6px; margin-top:.35rem; }
+  #dirCrumbs .crumb { cursor:pointer; user-select:none; }
+  #dirCrumbs .crumb.selected { outline:2px solid #1f7a3f; outline-offset:1px; }
+  #dirCrumbs .crumb .lib { margin-left:6px; text-decoration:none; opacity:.8 }
+  #dirCrumbs .crumb .lib:hover { opacity:1 }
+
+  /* Save button in panel header */
+  #editBox > summary { display:flex; align-items:center; gap:.5rem; }
+  #editSummaryText { flex:1 1 auto; }
+  #editBox:not([open]) #saveBtn,
+  #editBox:not([open]) #saveStatus { display:none; }
+  /* Optional: keep same button state visuals you already use */
+  .btn.save.idle   { opacity:.6; cursor:default; }
+  .btn.save.dirty  { opacity:1; }
+  .btn.save.saved  { opacity:1; }
+  .break-path { word-break: normal; overflow-wrap: break-word; }
+
+</style>
 
 <h1>@m.Filename</h1>
+
+<div id="vi_meta"
+     data-parent-dir="@System.IO.Path.GetDirectoryName(m.Path)"
+     data-root-path="@m.RootPath"
+     data-root-name="@m.Root"></div>
 
 <div class="wrap">
   <!-- LEFT COLUMN -->
   <div id="col-left">
     <div class="player-box">
-      <img id="vi_thumb" class="player-thumb" alt="thumbnail" />
+      <img id="vi_thumb" class="player-thumb" alt="thumbnail" src="/api/media/@m.Id/thumb?t=@DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()" />
       <video id="vi_video" class="player-video" style="display:none;" controls playsinline></video>
       <button id="vi_toggle" type="button" class="play-overlay">Play</button>
     </div>
@@ -41,22 +75,24 @@
       <button id="vi_back2thumb" class="btn ghost" type="button" style="display:none;">Back to thumbnail</button>
     </div>
     <div id="vi_status" class="muted" style="margin-top:6px;"></div>
-    <div class="muted" style="margin-top:.5rem">@m.Path</div>
+
+    <!-- Breadcrumbs -->
+    <div id="dirCrumbs" class="chipline" aria-label="Folder breadcrumbs"></div>
 
     <div class="section core">
-      <h3>Core</h3>
+      <h3>Details</h3>
       <dl>
         <dt>Size</dt><dd>@m.SizeHuman</dd>
-        <dt>Length</dt><dd>@(m.LengthHuman ?? "—")</dd>
-        <dt>Resolution</dt><dd>@(m.Width is null || m.Height is null ? "—" : $"{m.Width}×{m.Height}")</dd>
-        <dt>Bitrate</dt><dd>@(m.BitRateHuman ?? "—")</dd>
-        <dt>Frame rate</dt><dd>@(m.FrameRate?.ToString("0.###") ?? "—")</dd>
-        <dt>Video</dt><dd>@(m.VideoFormat ?? "—")</dd>
+        <dt>Length</dt><dd>@(m.LengthHuman ?? "n/a")</dd>
+        <dt>Resolution</dt><dd>@(m.Width is null || m.Height is null ? "n/a" : $"{m.Width}×{m.Height}")</dd>
+        <dt>Bitrate</dt><dd>@(m.BitRateHuman ?? "n/a")</dd>
+        <dt>Frame rate</dt><dd>@(m.FrameRate?.ToString("0.###") ?? "n/a")</dd>
+        <dt>Video</dt><dd>@(m.VideoFormat ?? "n/a")</dd>
 
         <dt>Audio</dt>
         <dd>
           <span>
-            @(m.AudioFormat ?? "—")
+            @(m.AudioFormat ?? "n/a")
             @(m.AudioChannels is null ? "" : $"({m.AudioChannels}ch)")
           </span>
           @if (!string.IsNullOrEmpty(m.AudioBitrateHuman))
@@ -65,10 +101,13 @@
           }
         </dd>
 
-        <dt class="fullrow">SHA-256</dt>
+        <dt class="black fullrow">Path</dt>
+        <dd class="mono fullrow"><span class="break-path">@Html.Raw(WbrPath(m.Path))</span></dd>
+
+        <dt class="black fullrow">SHA-256</dt>
         <dd class="mono fullrow">@m.Sha256</dd>
 
-        <dt class="fullrow">Root</dt>
+        <dt class="black fullrow">Root</dt>
         <dd class="fullrow">@m.Root <span class="muted">(@m.RootPath)</span></dd>
       </dl>
 
@@ -88,9 +127,13 @@
           <input type="checkbox" id="navUntagged">
           <span>Untagged only</span>
         </label>
-        <label class="hstack" title="Only navigate among items that have user-defined tags">
+        <label class="hstack" title="Only navigate among items that have user-defined tags" style="margin-right:.75rem;">
           <input type="checkbox" id="navTagged">
           <span>Tagged only</span>
+        </label>
+        <label class="hstack" title="Limit navigation to a specific directory (non-recursive)">
+          <input type="checkbox" id="navDirOnly">
+          <span>Selected directory only</span>
         </label>
       </div>
       <div class="right">
@@ -108,7 +151,13 @@
     </div>
 
     <details id="editBox" class="section">
-      <summary><strong id="editSummaryText">Edit details (click to open)</strong></summary>
+      <summary>
+        <strong id="editSummaryText">Edit details (click to open)</strong>
+        <!-- Top-right Save (only visible when details are open via CSS above) -->
+        <button id="saveBtn" class="btn save idle" type="button" title="Save changes">Save</button>
+        <span id="saveStatus" class="muted" style="margin-left:.5rem;" aria-live="polite"></span>
+      </summary>
+
       <div class="edit-body">
         <div class="grid2" style="margin-top:8px;">
           <div class="field">
@@ -181,11 +230,6 @@
             <div class="muted">Press <b>,</b> to commit a name. Backspace removes last chip.</div>
           </div>
         </div>
-
-        <div style="margin-top:12px;">
-          <button id="saveBtn" class="btn save idle">Save</button>
-          <span id="saveStatus" class="muted" style="margin-left:.5rem;"></span>
-        </div>
       </div><!-- /.edit-body -->
     </details>
   </div>
@@ -196,19 +240,109 @@
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
   
-  // keep tagged/untagged selection selected between pages
-  const LS_KEYS = { untagged: "vi_nav_untagged", tagged: "vi_nav_tagged" };
+  // sticky keys
+  const LS_KEYS = {
+    untagged: "vi_nav_untagged",
+    tagged:   "vi_nav_tagged",
+    dirOnly:  "vi_nav_dir_only",
+    dirPath:  "vi_nav_dir_path"
+  };
 
+  // tagged/untagged state
   function loadFilterState(){
     const u = localStorage.getItem(LS_KEYS.untagged) === "true";
     const t = localStorage.getItem(LS_KEYS.tagged) === "true";
-    // Resolve impossible state (both true) to "no filter"
     return (u && t) ? { u:false, t:false } : { u, t };
   }
   function saveFilterState(u, t){
     localStorage.setItem(LS_KEYS.untagged, u ? "true" : "false");
     localStorage.setItem(LS_KEYS.tagged,   t ? "true" : "false");
   }
+
+  // selected-dir state
+  function loadDirState(){
+    const only = localStorage.getItem(LS_KEYS.dirOnly) === "true";
+    const path = localStorage.getItem(LS_KEYS.dirPath) || "";
+    return { only, path };
+  }
+  function saveDirState(only, path){
+    localStorage.setItem(LS_KEYS.dirOnly, only ? "true" : "false");
+    if (path !== undefined) localStorage.setItem(LS_KEYS.dirPath, path || "");
+  }
+  function currentParentDir(){
+    return document.getElementById("vi_meta")?.dataset.parentDir || "";
+  }
+
+  // --- Breadcrumbs ---
+  function eqPath(a,b){
+    if (!a || !b) return a === b;
+    const na = a.replace(/\\/g,'/'); const nb = b.replace(/\\/g,'/');
+    return na.toLowerCase() === nb.toLowerCase();
+  }
+
+  function makeBreadcrumbs(){
+    const meta = document.getElementById('vi_meta'); if (!meta) return [];
+    const rootPath = meta.dataset.rootPath || '';
+    const rootName = meta.dataset.rootName || (rootPath || 'Root');
+    const parentDir = meta.dataset.parentDir || '';
+    if (!rootPath || !parentDir) return [];
+
+    const sep = rootPath.includes('\\') ? '\\' : '/';
+    const join = (base, part) => base.replace(new RegExp(sep + '$'), '') + sep + part;
+
+    const rpN = rootPath.replace(/\\/g,'/');
+    const pdN = parentDir.replace(/\\/g,'/');
+    let rel = '';
+    if (pdN.toLowerCase().startsWith(rpN.toLowerCase()))
+      rel = pdN.slice(rpN.length).replace(/^\/+/, '');
+
+    const parts = rel ? rel.split('/').filter(Boolean) : [];
+    const crumbs = [{ name: rootName, path: rootPath }];
+    let acc = rootPath;
+    for (const part of parts) { acc = join(acc, part); crumbs.push({ name: part, path: acc }); }
+    return crumbs;
+  }
+
+  function renderBreadcrumbs(){
+    const holder = document.getElementById('dirCrumbs'); if (!holder) return;
+    const crumbs = makeBreadcrumbs();
+    const { only, path } = loadDirState();
+
+    holder.innerHTML = '';
+    for (const c of crumbs) {
+      const span = document.createElement('span');
+      span.className = 'chip crumb';
+      span.setAttribute('data-path', c.path);
+      span.title = 'Set as selected directory for navigation';
+      if (only && path && eqPath(path, c.path)) span.classList.add('selected');
+      span.appendChild(document.createTextNode(c.name));
+
+      // small icon → Library with folder filter
+      const a = document.createElement('a');
+      a.href = `/library?dir=${encodeURIComponent(c.path)}&recursive=false`;
+      a.className = 'lib';
+      a.title = 'Open in Library';
+      a.setAttribute('aria-label','Open in Library');
+      a.textContent = '📁';
+      span.appendChild(a);
+
+      holder.appendChild(span);
+    }
+  }
+
+  // click: set selected directory AND auto-enable the checkbox
+  document.getElementById('dirCrumbs')?.addEventListener('click', (e) => {
+    const isLib = e.target.closest('a.lib');
+    if (isLib) return; // let the link navigate
+    const chip = e.target.closest('.crumb'); if (!chip) return;
+    const p = chip.getAttribute('data-path') || '';
+    saveDirState(true, p); // enable + set path
+    const navDirOnly = document.getElementById('navDirOnly');
+    if (navDirOnly) navDirOnly.checked = true;
+    renderBreadcrumbs();
+    refreshNav();
+  });
+
   // Suggestions
   async function fill(field, datalistId) {
     try {
@@ -229,6 +363,7 @@
     fill("other", "dl-other");
     fill("performers", "dl-performers");
   }
+
   // State
   const srcAllowed = ["Studio","OnlyFans","Amateur","Vintage","Webcam","Spycam","CCTV","Selfie","Social Media","Animated","Unknown"];
   const oriAllowed = ["Gay","Straight","Bi","FtM Trans","MtF Trans"];
@@ -238,7 +373,7 @@
   let performersArr = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initPerf));
 
   // Utils
-  function badgeFromCount(pc){ if(pc===1) return "Solo"; if(pc===2) return "Duo"; if(pc>=3) return "Group"; return "—"; }
+  function badgeFromCount(pc){ if(pc===1) return "Solo"; if(pc===2) return "Duo"; if(pc>=3) return "Group"; return "n/a"; }
   function normToken(s){ return s.trim().replace(/\s+/g,' '); }
   function addToken(arr,t){ const v=normToken(t); if(!v) return; if(!arr.some(x=>x.localeCompare(v,undefined,{sensitivity:'accent'})===0)) arr.push(v); markDirty(); }
   function findIndexCI(arr,t){ return arr.findIndex(x=>x.localeCompare(t,undefined,{sensitivity:'accent'})===0); }
@@ -330,7 +465,7 @@
     return hasYear || hasPC || hasStudio || hasUser || hasSrc || hasOri || hasOther || hasPerf;
   }
 
-  // Prev/Next nav
+  // Prev/Next nav (with optional dir constraint)
   async function refreshNav(){
     const prevA = document.getElementById("navPrev");
     const nextA = document.getElementById("navNext");
@@ -338,6 +473,7 @@
 
     const u = document.getElementById("navUntagged")?.checked === true;
     const t = document.getElementById("navTagged")?.checked === true;
+    const { only: dirOnly, path: dirPath } = loadDirState();
 
     function setNavLink(a, targetId, enabledTitle, disabledTitle){
       if (targetId != null) {
@@ -356,7 +492,12 @@
     }
 
     try{
-      const r = await fetch(`/api/media/nav?id=${id}&untaggedOnly=${u ? "true" : "false"}&taggedOnly=${t ? "true" : "false"}`);
+      let url = `/api/media/nav?id=${id}&untaggedOnly=${u ? "true" : "false"}&taggedOnly=${t ? "true" : "false"}`;
+      if (dirOnly && dirPath) {
+        url += `&dir=${encodeURIComponent(dirPath)}&recursive=false`;
+      }
+
+      const r = await fetch(url);
       if(!r.ok){
         console.debug("nav: HTTP error", r.status);
         setNavLink(prevA, null, null, "Navigation not available");
@@ -367,7 +508,7 @@
       const prevId = j?.prevId ?? null;
       const nextId = j?.nextId ?? null;
 
-      console.debug("nav:", { id, untaggedOnly: u, taggedOnly: t, prevId, nextId });
+      console.debug("nav:", { id, untaggedOnly: u, taggedOnly: t, dirOnly, dirPath, prevId, nextId });
 
       setNavLink(prevA, prevId, "Previous", "No previous item");
       setNavLink(nextA, nextId, "Next",     "No next item");
@@ -400,16 +541,23 @@
     initialSnapshot = snapshotDto();
     setSaveState("idle");
 
-    // Prev/Next
-    // Sticky filter checkboxes (mutually exclusive)
+    // Prev/Next – sticky filters (mutually exclusive) + directory-only
     const navUntagged = document.getElementById("navUntagged");
     const navTagged   = document.getElementById("navTagged");
+    const navDirOnly  = document.getElementById("navDirOnly");
 
     (function initSticky(){
       const { u, t } = loadFilterState();
       if (navUntagged) navUntagged.checked = u;
       if (navTagged)   navTagged.checked   = t;
+
+      const { only, path } = loadDirState();
+      if (navDirOnly) {
+        navDirOnly.checked = only;
+        if (only && !path) saveDirState(true, currentParentDir());
+      }
     })();
+    renderBreadcrumbs();
 
     function applyMutualExclusivity(changed){
       if (!navUntagged || !navTagged) return;
@@ -420,7 +568,16 @@
     }
 
     navUntagged?.addEventListener("change", () => applyMutualExclusivity("u"));
-    navTagged?.addEventListener("change",   () => applyMutualExclusivity("t"));
+    navTagged  ?.addEventListener("change", () => applyMutualExclusivity("t"));
+
+    navDirOnly?.addEventListener("change", () => {
+      const on = navDirOnly.checked;
+      if (on && !loadDirState().path) saveDirState(true, currentParentDir());
+      else saveDirState(on, loadDirState().path);
+      renderBreadcrumbs();
+      refreshNav();
+    });
+
     refreshNav();
 
     // Quick PC buttons
@@ -479,8 +636,9 @@
     });
   });
 
-  // Save
-  saveBtn.addEventListener("click", async () => {
+  // Save (stop toggling the <details> when clicking Save)
+  saveBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
     saveBtn.disabled = true;
     statusEl.textContent = "saving…";
     const dto = {
@@ -501,8 +659,8 @@
       setSaveState("saved");
       setTimeout(()=> setSaveState("idle"), 1500);
       refreshSuggestions();
-    } catch (e) {
-      statusEl.textContent = "error: " + e.message;
+    } catch (e2) {
+      statusEl.textContent = "error: " + e2.message;
     } finally { saveBtn.disabled = false; }
   });
 </script>
@@ -568,7 +726,7 @@
     video.src = streamUrl;
     video.style.display = "";
     backBtn.style.display = "";
-    toggle.textContent = "Pause";
+    toggle.textContent = "Stop";
     video.play().catch(()=>{ status.textContent = "Couldn’t start playback (codec/permissions)."; });
   }
   function showThumb(){
@@ -600,7 +758,10 @@
     catch{ status.textContent = "Failed to reveal."; }
   });
 
-  video.addEventListener("error", ()=>{ status.textContent = "Browser couldn’t play this file. Try “Open in player”."; });
+  video.addEventListener("error", () => {
+    status.textContent = "Browser couldn't play this file. Try \"Open in player\".";
+  });
+
 })();
 </script>
 

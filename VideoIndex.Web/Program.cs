@@ -306,111 +306,137 @@ app.MapDelete("/api/roots/{id:int}", async (int id, IDbContextFactory<VideoIndex
     return Results.Ok(new { deleted = true });
 });
 
-// ---------- NAV: prev/next (with optional "untagged only" / "tagged only") ----------
+// ---------- NAV: prev/next (dir + tagged filters + nearest-neighbor) ----------
 app.MapGet("/api/media/nav", async (
     IDbContextFactory<VideoIndexDbContext> dbFactory,
     int id,
     bool? untaggedOnly,
-    bool? taggedOnly
+    bool? taggedOnly,
+    string? dir,
+    bool? recursive
 ) =>
 {
     await using var db = await dbFactory.CreateDbContextAsync();
 
-    IQueryable<MediaFile> q = db.MediaFiles.AsNoTracking();
-    List<int> ids;
+    // normalize filter flags (server-side mutual exclusivity)
+    bool wantUntagged = untaggedOnly == true;
+    bool wantTagged = taggedOnly == true;
+    if (wantUntagged && wantTagged) { wantUntagged = false; wantTagged = false; }
 
-    bool u = untaggedOnly == true;
-    bool t = taggedOnly == true;
-
-    if (u && !t)
+    // normalize directory
+    string? normDir = null;
+    if (!string.IsNullOrWhiteSpace(dir))
     {
-        // Filter to UNTAGGED in memory (SQLite can't translate List<T>.Count == 0)
-        var rows = await q.Select(m => new
+        // Convert to absolute form & normalize slashes for comparisons (Windows-friendly, case-insensitive)
+        try
         {
-            m.Id,
-            m.SourceTypes,
-            m.OrientationTags,
-            m.OtherTags,
-            m.PerformerNames,
-            m.PerformerCount,
-            m.Year,
-            m.StudioName,
-            m.SourceUsername
-        }).ToListAsync();
-
-        ids = rows.Where(m =>
-                (m.SourceTypes == null || m.SourceTypes.Count == 0) &&
-                (m.OrientationTags == null || m.OrientationTags.Count == 0) &&
-                (m.OtherTags == null || m.OtherTags.Count == 0) &&
-                (m.PerformerNames == null || m.PerformerNames.Count == 0) &&
-                m.PerformerCount == null &&
-                m.Year == null &&
-                string.IsNullOrEmpty(m.StudioName) &&
-                string.IsNullOrEmpty(m.SourceUsername)
-            )
-            .Select(m => m.Id)
-            .OrderBy(x => x)
-            .ToList();
-    }
-    else if (t && !u)
-    {
-        // Filter to TAGGED in memory (opposite condition)
-        var rows = await q.Select(m => new
+            normDir = Path.GetFullPath(dir.Trim())
+                         .Replace('/', Path.DirectorySeparatorChar)
+                         .TrimEnd(Path.DirectorySeparatorChar);
+        }
+        catch
         {
-            m.Id,
-            m.SourceTypes,
-            m.OrientationTags,
-            m.OtherTags,
-            m.PerformerNames,
-            m.PerformerCount,
-            m.Year,
-            m.StudioName,
-            m.SourceUsername
-        }).ToListAsync();
-
-        ids = rows.Where(m =>
-                (m.SourceTypes != null && m.SourceTypes.Count > 0) ||
-                (m.OrientationTags != null && m.OrientationTags.Count > 0) ||
-                (m.OtherTags != null && m.OtherTags.Count > 0) ||
-                (m.PerformerNames != null && m.PerformerNames.Count > 0) ||
-                m.PerformerCount != null ||
-                m.Year != null ||
-                !string.IsNullOrEmpty(m.StudioName) ||
-                !string.IsNullOrEmpty(m.SourceUsername)
-            )
-            .Select(m => m.Id)
-            .OrderBy(x => x)
-            .ToList();
+            // If it's a weird path, keep it as-is but still normalize slashes & trim
+            normDir = dir.Trim().Replace('/', Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar);
+        }
     }
-    else
+    bool useDirFilter = !string.IsNullOrEmpty(normDir);
+    bool recurseDirs = recursive == true;
+
+    // If no filters at all → fast path (DB-only)
+    if (!useDirFilter && !wantUntagged && !wantTagged)
     {
-        // Either both off (normal) or both on (conflict) => treat as NO filter
-        ids = await q
+        var idsAll = await db.MediaFiles
+            .AsNoTracking()
             .OrderBy(m => m.Id)
             .Select(m => m.Id)
             .ToListAsync();
+
+        return Results.Ok(ComputeNeighbors(idsAll, id));
     }
 
-    if (ids.Count == 0)
-        return Results.Ok(new { prevId = (int?)null, nextId = (int?)null });
+    // Otherwise: load minimal fields and filter client-side (simpler + SQLite-safe)
+    var rows = await db.MediaFiles
+        .AsNoTracking()
+        .OrderBy(m => m.Id)
+        .Select(m => new
+        {
+            m.Id,
+            m.Path,
+            m.SourceTypes,
+            m.OrientationTags,
+            m.OtherTags,
+            m.PerformerNames,
+            m.PerformerCount,
+            m.Year,
+            m.StudioName,
+            m.SourceUsername
+        })
+        .ToListAsync();
 
-    // Nearest neighbors even if current id isn't in the filtered set
-    int idx = ids.IndexOf(id);
-    int? prevId, nextId;
+    static bool IsUntagged(dynamic m) =>
+        (m.SourceTypes == null || m.SourceTypes.Count == 0) &&
+        (m.OrientationTags == null || m.OrientationTags.Count == 0) &&
+        (m.OtherTags == null || m.OtherTags.Count == 0) &&
+        (m.PerformerNames == null || m.PerformerNames.Count == 0) &&
+        m.PerformerCount == null &&
+        m.Year == null &&
+        string.IsNullOrEmpty(m.StudioName) &&
+        string.IsNullOrEmpty(m.SourceUsername);
 
-    if (idx >= 0)
+    // Directory predicate
+    bool DirMatch(string filePath)
     {
-        prevId = idx > 0 ? ids[idx - 1] : (int?)null;
-        nextId = idx < ids.Count - 1 ? ids[idx + 1] : (int?)null;
-    }
-    else
-    {
-        prevId = ids.Where(x => x < id).Select<int, int?>(x => x).DefaultIfEmpty(null).Max();
-        nextId = ids.Where(x => x > id).Select<int, int?>(x => x).DefaultIfEmpty(null).Min();
+        if (string.IsNullOrEmpty(normDir)) return true;
+        var full = filePath?.Replace('/', Path.DirectorySeparatorChar) ?? "";
+        // Quick reject if not under root at all
+        var prefix = normDir + Path.DirectorySeparatorChar;
+        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
+
+        if (recurseDirs) return true;
+
+        // Exact directory only: compare the file's parent dir to normDir
+        string? parent;
+        try { parent = Path.GetDirectoryName(full)?.TrimEnd(Path.DirectorySeparatorChar); }
+        catch { parent = null; }
+        return parent != null && parent.Equals(normDir, StringComparison.OrdinalIgnoreCase);
     }
 
-    return Results.Ok(new { prevId, nextId });
+    // Apply filters
+    var filtered = rows.Where(m =>
+        DirMatch(m.Path) &&
+        (!wantUntagged || IsUntagged(m)) &&
+        (!wantTagged || !IsUntagged(m))
+    );
+
+    var ids = filtered.Select(m => (int)m.Id).ToList();
+
+    return Results.Ok(ComputeNeighbors(ids, id));
+
+    // ---- local helper ----
+    static object ComputeNeighbors(List<int> ids, int currentId)
+    {
+        if (ids.Count == 0) return new { prevId = (int?)null, nextId = (int?)null };
+
+        var idx = ids.IndexOf(currentId);
+        int? prevId, nextId;
+
+        if (idx >= 0)
+        {
+            prevId = idx > 0 ? ids[idx - 1] : (int?)null;
+            nextId = idx < ids.Count - 1 ? ids[idx + 1] : (int?)null;
+        }
+        else
+        {
+            // Current item not in filtered set → find nearest neighbors by Id
+            prevId = ids.Where(x => x < currentId).Cast<int?>().DefaultIfEmpty(null).Max();
+            nextId = ids.Where(x => x > currentId).Cast<int?>().DefaultIfEmpty(null).Min();
+        }
+
+        return new { prevId, nextId };
+    }
 });
+
 
 
 // ---------- Meta distincts (updated to new fields) ----------
@@ -796,6 +822,14 @@ app.MapGet("/api/media/browse", async (
     int? minPerf = int.TryParse(req.Query["minPerformers"], out var mp) ? mp : null;
     int? maxPerf = int.TryParse(req.Query["maxPerformers"], out var xp) ? xp : null;
 
+    // NEW: directory scope
+    string? dir = req.Query["dir"];
+    bool recursive = bool.TryParse(req.Query["recursive"], out var rec) && rec;
+    string? normDir = string.IsNullOrWhiteSpace(dir) ? null
+        : Path.GetFullPath(dir).TrimEnd('\\', '/'); // tolerant of / or \ input
+    char sep = Path.DirectorySeparatorChar;
+    string? prefix = normDir is null ? null : normDir + sep;
+
     await using var db = await factory.CreateDbContextAsync();
 
     IQueryable<MediaFile> qEF = db.MediaFiles.AsNoTracking();
@@ -805,6 +839,10 @@ app.MapGet("/api/media/browse", async (
 
     if (maxPerf.HasValue)
         qEF = qEF.Where(m => m.PerformerCount != null && m.PerformerCount <= maxPerf.Value);
+
+    // NEW: prefilter by directory in SQL for performance (always recursive)
+    if (prefix != null)
+        qEF = qEF.Where(m => m.Path.StartsWith(prefix));
 
     // Prefetch cap for client-side tag filtering + updated sorting.
     const int PREFETCH_MAX = 5000;
@@ -826,7 +864,7 @@ app.MapGet("/api/media/browse", async (
             m.Height,
             m.Year,
             m.PerformerCount,
-            m.PerformerNames,   // <-- included for search
+            m.PerformerNames,   // included for search
             m.SourceTypes,
             m.OrientationTags,
             m.OtherTags,
@@ -834,6 +872,19 @@ app.MapGet("/api/media/browse", async (
             m.UpdatedAt
         })
         .ToListAsync();
+
+    // NEW: exact-directory only (non-recursive) filter (in-memory, SQLite-safe)
+    if (normDir != null && !recursive)
+    {
+        pre = pre
+            .Where(m =>
+            {
+                string? parent = null;
+                try { parent = Path.GetDirectoryName(m.Path)?.TrimEnd('\\', '/'); } catch { }
+                return parent != null && parent.Equals(normDir, StringComparison.OrdinalIgnoreCase);
+            })
+            .ToList();
+    }
 
     // Client-side tag filtering (SourceTypes / OrientationTags)
     if (srcFilter.Count > 0)
@@ -979,6 +1030,7 @@ app.MapGet("/api/media/browse", async (
         return false;
     }
 });
+
 
 app.MapHub<ScanHub>("/hubs/scan");
 app.MapGet("/api/media/thumb", () => Results.BadRequest("Missing media id. Use /api/media/{id:int}/thumb"));

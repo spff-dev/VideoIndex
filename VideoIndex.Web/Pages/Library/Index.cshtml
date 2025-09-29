@@ -41,6 +41,13 @@
   .panel.src  { background:#e8f0fe; border-color:#c8ddff; }   /* blue tint */
   .panel.scan { background:#f7f7f7; border-color:#e3e3e3; }   /* light gray */
 
+  /* Folder scope chip */
+  .chip.folder { background:#e8f0fe; border-color:#c8ddff; }
+  /* NEW: allow multi-line full paths */
+  .chip.folder { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+  .chip.folder .path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  .chip .x { border:0; background:transparent; cursor:pointer; font-size:1rem; line-height:1; padding:0 .25rem; }
+
   @@media (max-width: 1400px){ .grid { grid-template-columns: repeat(4, minmax(0,1fr)); } }
   @@media (max-width: 1000px){ .grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
   @@media (max-width: 700px){ .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
@@ -121,6 +128,9 @@
   </div>
 </div>
 
+<!-- Active scope (folder) chip -->
+<div id="scopeBar" class="hstack" style="margin:4px 0 10px 0;"></div>
+
 <div class="countbar">
   <div><b id="totalCount">0</b> total</div>
   <div class="muted">Showing <span id="shownCount">0</span> of 36 per page</div>
@@ -157,6 +167,7 @@
   function setParams(updates){
     const u = new URL(location.href);
     const sp = u.searchParams;
+    // NOTE: do not clear 'dir' / 'recursive' here so they persist unless explicitly removed.
     ["source","orientation","minPerformers","maxPerformers","sort","skip","q"].forEach(k=>sp.delete(k));
     for (const [k,v] of Object.entries(updates)){
       if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length===0)) continue;
@@ -164,6 +175,25 @@
       else sp.set(k, String(v));
     }
     history.replaceState({}, "", u.toString());
+  }
+  function clearFolderFilterInUrl(){
+    const u = new URL(location.href);
+    u.searchParams.delete("dir");
+    u.searchParams.delete("recursive");
+    history.replaceState({}, "", u.toString());
+    renderScopeBar();
+  }
+  function getFolderFilterFromUrl(){
+    const sp = getParams();
+    const dir = sp.get("dir") || "";
+    const recursive = (sp.get("recursive") || "false").toLowerCase() === "true";
+    return { dir, recursive };
+  }
+  function basename(p){
+    if (!p) return "";
+    // handle both slashes
+    const parts = p.split(/[\\/]+/).filter(Boolean);
+    return parts.length ? parts[parts.length-1] : p;
   }
 
   function quickPerfMatches(btn){
@@ -300,6 +330,37 @@
     $("#totalCount").textContent = total;
   }
 
+  function renderScopeBar(){
+    const { dir, recursive } = getFolderFilterFromUrl();
+    const bar = $("#scopeBar");
+    if (!bar) return;                 // ensure the container exists
+    bar.innerHTML = "";
+    if (!dir) return;
+
+    const chip = document.createElement("span");
+    chip.className = "chip folder";
+    chip.title = dir;
+
+    // insert zero-width spaces after / or \ so the path can wrap
+    const breakable = escapeHtml(dir).replace(/([\\/])/g, '$1&#8203;'); // &#8203; = ZWSP
+
+    chip.innerHTML =
+      `📁 <span class="path">${breakable}</span>` +
+      (recursive ? " (all subfolders)" : "") +
+      ` <button type="button" id="clearFolderFilter" class="x" title="Clear folder filter">×</button>`;
+
+    bar.appendChild(chip);
+
+    // clear button
+    $("#clearFolderFilter")?.addEventListener("click", () => {
+      const u = new URL(location.href);
+      u.searchParams.delete("dir");
+      u.searchParams.delete("recursive");
+      history.replaceState({}, "", u.toString());
+      reload(true);
+    });
+  }
+
   // ---- fetch ----
   async function fetchPage(append=false){
     $("#status").textContent = "loading…";
@@ -321,6 +382,13 @@
     if (maxP) params.set("maxPerformers", maxP);
 
     params.set("sort", $("#sortSel").value);
+
+    // NEW: pass folder scope to API
+    const { dir, recursive } = getFolderFilterFromUrl();
+    if (dir) {
+      params.set("dir", dir);
+      params.set("recursive", recursive ? "true" : "false");
+    }
 
     const url = `/api/media/browse?${params.toString()}`;
     try {
@@ -353,6 +421,7 @@
       q: ($("#searchBox").value ?? "").trim() || null,
       skip
     });
+    renderScopeBar();
     fetchPage(false);
   }
 
@@ -378,6 +447,7 @@
     $$("#srcGroup .tagbtn").forEach(b=> b.classList.remove("on"));
     $$("#oriGroup .tagbtn").forEach(b=> b.classList.remove("on"));
     updateQuickPerfButtons();
+    clearFolderFilterInUrl(); // also clear folder scope
     reload(true);
   }
 
@@ -418,11 +488,9 @@
     },
 
     async dryRunAll(roots){
-      // try to estimate totals; if any fail, we’ll fall back to accumulating on “started”
       let sum = 0;
       await Promise.all(roots.map(async (rt)=>{
         try{
-          const q = new URLSearchParams({ });
           const res = await fetch(`/api/roots/${rt.id}/scan-dry-run`);
           if (!res.ok) return;
           const js = await res.json();
@@ -437,12 +505,10 @@
       $("#scanLog").textContent = "";
       this.setStatus("preparing…");
 
-      // options
       const workers = Math.max(1, Math.min(24, parseInt($("#scanWorkers").value, 10) || 8));
       const thumbs = $("#scanThumbs").checked;
       const regenAll = $("#scanRegenAll").checked;
 
-      // fetch roots
       try{
         this.roots = await this.getRoots();
       }catch(e){
@@ -458,12 +524,10 @@
         return;
       }
 
-      // estimate totals (optional)
       this.overallTotal = await this.dryRunAll(this.roots);
       this.processedSoFar = 0;
       this.currentRootTotal = 0;
 
-      // signalR
       const base = location.origin;
       const scanId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2);
       this.connection = new signalR.HubConnectionBuilder()
@@ -477,14 +541,12 @@
       this.connection.on("progress", evt => {
         switch (evt.kind) {
           case "started": {
-            // If we couldn't estimate, grow total as we go
             if (!this.overallTotal || this.overallTotal <= 0) {
               this.overallTotal += (evt.totals.files || 0);
             }
             this.currentRootTotal = evt.totals.files || 0;
             this.setStatus(`running — ${evt.root.name}`);
             this.log(`Scan started on "${evt.root.name}" (${evt.root.path}) — files: ${this.currentRootTotal}, thumbs: ${evt.totals.thumbsRequested ? "on" : "off"} (regenAll ${regenAll}), workers: ${workers}`, "muted");
-            // Reset per-root counters in UI context (overall counters persist)
             break;
           }
           case "indexError":
@@ -538,7 +600,6 @@
         return;
       }
 
-      // run each root sequentially
       for (let i=0; i<this.roots.length; i++){
         const r = this.roots[i];
         this.log(`→ Starting root ${i+1}/${this.roots.length}: ${r.name}`, "muted");
@@ -551,7 +612,6 @@
             this.setStatus("error");
             break;
           } else {
-            // server returns summary when that root is done
             const summary = await resp.json();
             this.log(`Root "${r.name}" request completed — discovered: ${summary.scanned}`, "muted");
           }
@@ -571,7 +631,15 @@
   document.addEventListener("DOMContentLoaded", () => {
     // Library init
     readFromUrl();
+    renderScopeBar();
     reload(false);
+
+    $("#scopeBar").addEventListener("click", (e)=>{
+      const btn = e.target.closest("#clearFolderFilter");
+      if (!btn) return;
+      clearFolderFilterInUrl();
+      reload(true);
+    });
 
     $("#oriGroup").addEventListener("click", (e)=>{
       const btn = e.target.closest('.tagbtn'); if (!btn) return;
@@ -663,10 +731,11 @@
     $("#toggleFilters").addEventListener("click", toggleFilters);
     $("#resetAll").addEventListener("click", resetAll);
 
-    // Mini scan wiring
-    $("#btnScanAll").addEventListener("click", () => scan.start());
-    $("#toggleScanLog").addEventListener("click", ()=>{
+    // Mini scan wiring (guard for missing elements)
+    $("#btnScanAll")?.addEventListener("click", () => scan.start());
+    $("#toggleScanLog")?.addEventListener("click", ()=>{
       const pre = $("#scanLog");
+      if (!pre) return;
       const shown = pre.style.display !== "none";
       pre.style.display = shown ? "none" : "block";
       $("#toggleScanLog").textContent = shown ? "Show log" : "Hide log";

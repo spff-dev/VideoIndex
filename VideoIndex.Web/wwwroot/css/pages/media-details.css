@@ -7,6 +7,7 @@
 .muted {
   color: #666;
 }
+
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -265,4 +266,32 @@ details.section[open] > .edit-body {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+.savebar {
+  position: sticky;
+  top: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  margin: 10px 0;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+}
+.btn.save.idle {
+  opacity: 0.6;
+  cursor: default;
+}
+.btn.save.dirty {
+  opacity: 1;
+}
+.btn.save.saved {
+  opacity: 1;
+}
+.black {
+  color: #111;
 }
