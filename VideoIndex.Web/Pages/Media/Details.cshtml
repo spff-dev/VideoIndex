@@ -45,12 +45,18 @@
   #editSummaryText { flex:1 1 auto; }
   #editBox:not([open]) #saveBtn,
   #editBox:not([open]) #saveStatus { display:none; }
-  /* Optional: keep same button state visuals you already use */
   .btn.save.idle   { opacity:.6; cursor:default; }
   .btn.save.dirty  { opacity:1; }
   .btn.save.saved  { opacity:1; }
+
   .break-path { word-break: normal; overflow-wrap: break-word; }
 
+  /* Make certain DTs fully black */
+  .section.core dt.black { color:#000 !important; }
+
+  /* Fade-out behavior for Save status */
+  #saveStatus { transition: opacity .6s ease; }
+  #saveStatus.fade { opacity: 0; }
 </style>
 
 <h1>@m.Filename</h1>
@@ -88,18 +94,6 @@
         <dt>Bitrate</dt><dd>@(m.BitRateHuman ?? "n/a")</dd>
         <dt>Frame rate</dt><dd>@(m.FrameRate?.ToString("0.###") ?? "n/a")</dd>
         <dt>Video</dt><dd>@(m.VideoFormat ?? "n/a")</dd>
-
-        <dt>Audio</dt>
-        <dd>
-          <span>
-            @(m.AudioFormat ?? "n/a")
-            @(m.AudioChannels is null ? "" : $"({m.AudioChannels}ch)")
-          </span>
-          @if (!string.IsNullOrEmpty(m.AudioBitrateHuman))
-          {
-            <span class="muted" style="display:block">@m.AudioBitrateHuman</span>
-          }
-        </dd>
 
         <dt class="black fullrow">Path</dt>
         <dd class="mono fullrow"><span class="break-path">@Html.Raw(WbrPath(m.Path))</span></dd>
@@ -153,9 +147,9 @@
     <details id="editBox" class="section">
       <summary>
         <strong id="editSummaryText">Edit details (click to open)</strong>
-        <!-- Top-right Save (only visible when details are open via CSS above) -->
+        <!-- Status on the LEFT of the Save button to keep Save pinned top-right -->
+        <span id="saveStatus" class="muted" style="margin-right:.5rem;" aria-live="polite"></span>
         <button id="saveBtn" class="btn save idle" type="button" title="Save changes">Save</button>
-        <span id="saveStatus" class="muted" style="margin-left:.5rem;" aria-live="polite"></span>
       </summary>
 
       <div class="edit-body">
@@ -215,19 +209,19 @@
           </div>
 
           <div class="field" style="grid-column:1 / -1;">
-            <label>Other tags <small>(comma-separated)</small></label>
+            <label>Other tags <small>(comma or Enter to add)</small></label>
             <input id="otherTagsInput" type="text" list="dl-other" placeholder="black-and-white, remaster, …">
             <datalist id="dl-other"></datalist>
             <div id="otherChips" class="chipline"></div>
-            <div class="muted">Type a tag and press <b>,</b> or <b>Enter</b> to commit. Backspace removes last chip.</div>
+            <div class="muted">Type a tag and press <b>,</b> or <b>Enter</b> to commit.</div>
           </div>
 
           <div class="field" style="grid-column:1 / -1;">
-            <label>Performers <small>(comma-separated)</small></label>
+            <label>Performers <small>(comma or Enter to add)</small></label>
             <input id="performersInput" type="text" list="dl-performers" placeholder="dean winchester, mike read">
             <datalist id="dl-performers"></datalist>
             <div id="performerChips" class="chipline"></div>
-            <div class="muted">Press <b>,</b> to commit a name. Backspace removes last chip.</div>
+            <div class="muted">Press <b>,</b> or <b>Enter</b> to commit a name.</div>
           </div>
         </div>
       </div><!-- /.edit-body -->
@@ -382,6 +376,25 @@
   // Save button state
   const saveBtn = $("#saveBtn");
   const statusEl = $("#saveStatus");
+  let statusFadeTimer = null, statusClearTimer = null;
+  function showStatus(text, { autohide = false, delay = 1800 } = {}) {
+    // cancel any previous timers
+    if (statusFadeTimer) { clearTimeout(statusFadeTimer); statusFadeTimer = null; }
+    if (statusClearTimer) { clearTimeout(statusClearTimer); statusClearTimer = null; }
+
+    statusEl.textContent = text;
+    statusEl.classList.remove("fade");
+
+    if (autohide) {
+      statusFadeTimer = setTimeout(() => {
+        statusEl.classList.add("fade");
+        statusClearTimer = setTimeout(() => {
+          statusEl.textContent = "";
+          statusEl.classList.remove("fade");
+        }, 650); // keep ~ in sync with CSS transition
+      }, delay);
+    }
+  }
   let initialSnapshot = null;
   function snapshotDto(){
     const yearV = ($("#year").value || "").trim();
@@ -425,7 +438,8 @@
   }
   function renderOtherChips(){
     const holder = $("#otherChips"); holder.innerHTML="";
-    otherTagsArr.forEach(t=>{
+    const sorted = otherTagsArr.slice().sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+    sorted.forEach(t=>{
       const s = document.createElement("span"); s.className="chip other"; s.textContent=t;
       const x = document.createElement("button"); x.type="button"; x.className="x"; x.setAttribute("data-remove-other",t); x.textContent="×";
       s.appendChild(x); holder.appendChild(s);
@@ -446,7 +460,8 @@
     const b = document.createElement("span"); b.className="chip badge"; b.textContent=badgeFromCount(Number.isNaN(pc)?null:pc); wrap.appendChild(b);
     for (const v of orientationSel){ const c=document.createElement("span"); c.className="chip ori"; c.textContent=v; wrap.appendChild(c); }
     for (const v of sourceTypesSel){ const c=document.createElement("span"); c.className="chip src"; c.textContent=v; wrap.appendChild(c); }
-    for (const v of otherTagsArr){ const c=document.createElement("span"); c.className="chip other"; c.textContent=v; wrap.appendChild(c); }
+    const sortedOther = otherTagsArr.slice().sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+    for (const v of sortedOther){ const c=document.createElement("span"); c.className="chip other"; c.textContent=v; wrap.appendChild(c); }
   }
   function updateConditionals(){
     $("#studioName").disabled = !sourceTypesSel.has("Studio");
@@ -608,15 +623,13 @@
       el?.addEventListener("input", markDirty);
     });
 
-    // Other tags input
+    // Other tags input (comma or Enter to add; no Backspace removal)
     const otherInput = $("#otherTagsInput");
     otherInput.addEventListener("keydown", (e)=>{
       if (e.key === "," || e.key === "Enter") {
         e.preventDefault();
         const v = otherInput.value;
         if (v.trim() !== "") { addToken(otherTagsArr, v); otherInput.value = ""; renderOtherChips(); renderSummary(); }
-      } else if (e.key === "Backspace" && otherInput.value.trim() === "" && otherTagsArr.length > 0) {
-        otherTagsArr.pop(); renderOtherChips(); renderSummary(); markDirty();
       }
     });
     $("#otherChips").addEventListener("click", (e)=>{
@@ -624,11 +637,14 @@
       removeToken(otherTagsArr, btn.getAttribute('data-remove-other')); renderOtherChips(); renderSummary(); markDirty();
     });
 
-    // Performers
+    // Performers (comma or Enter to add; no Backspace removal)
     const perfInput = $("#performersInput");
     perfInput.addEventListener("keydown", (e)=>{
-      if (e.key === ",") { e.preventDefault(); addToken(performersArr, perfInput.value); perfInput.value=""; renderPerformerChips(); markDirty(); }
-      else if (e.key === "Backspace" && perfInput.value.trim()==="" && performersArr.length>0) { performersArr.pop(); renderPerformerChips(); markDirty(); }
+      if (e.key === "," || e.key === "Enter") {
+        e.preventDefault();
+        const v = perfInput.value;
+        if (v.trim() !== "") { addToken(performersArr, v); perfInput.value=""; renderPerformerChips(); markDirty(); }
+      }
     });
     $("#performerChips").addEventListener("click", (e)=>{
       const btn = e.target.closest('button[data-remove-perf]'); if (!btn) return;
@@ -652,16 +668,19 @@
       performerCount: (function(v){ v=v.trim(); if(!v) return null; const n=parseInt(v,10); return Number.isNaN(n)? null : n; })($("#performerCount").value || "")
     };
     try {
-      const resp = await fetch(`/api/media/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dto) });
+      const resp = await fetch(`/api/media/${id}`, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(dto) });
       if (!resp.ok) throw new Error(await resp.text() || ("HTTP " + resp.status));
-      statusEl.textContent = "saved ✓";
+
+      showStatus("Saved ✓", { autohide: true, delay: 1800 });
       initialSnapshot = snapshotDto();
-      setSaveState("saved");
-      setTimeout(()=> setSaveState("idle"), 1500);
+      setSaveState("Saved");
+      setTimeout(()=> setSaveState("Idle"), 1500);
       refreshSuggestions();
     } catch (e2) {
-      statusEl.textContent = "error: " + e2.message;
-    } finally { saveBtn.disabled = false; }
+      showStatus("Error: " + (e2?.message || String(e2)));
+    } finally {
+      saveBtn.disabled = false;
+    }
   });
 </script>
 
