@@ -1,6 +1,4 @@
-/* /wwwroot/css/app.css */
-
-/* base */
+/* === GLOBAL & BASE STYLES === */
 * {
   box-sizing: border-box;
 }
@@ -11,24 +9,60 @@ body {
 }
 body {
   font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue",
-    Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    Arial, "Noto Sans", sans-serif;
   color: #111;
   background: #fff;
 }
 a {
   color: inherit;
+  text-decoration: none;
+}
+h1,
+h3 {
+  margin: 0 0 0.5rem;
+}
+label {
+  font-weight: 600;
+}
+label small {
+  color: #666;
+  font-weight: 400;
+}
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
 }
 
-/* page container (center + padding) */
+/* === UTILITIES === */
+.muted {
+  color: #777;
+  font-size: 0.9rem;
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.break-word {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.hstack {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* === LAYOUT === */
 main.page {
   max-width: 1200px;
-  width: 100%;
   margin-inline: auto;
   padding: 16px 18px 28px;
-  display: block;
 }
-
-/* sticky top nav with centered inner row */
 .topnav {
   position: sticky;
   top: 0;
@@ -38,7 +72,6 @@ main.page {
 }
 .topnav .inner {
   max-width: 1200px;
-  width: 100%;
   margin-inline: auto;
   display: flex;
   align-items: center;
@@ -47,43 +80,376 @@ main.page {
 }
 .topnav .brand {
   font-weight: 700;
-  color: #111;
-}
-.topnav a {
-  color: inherit;
-  text-decoration: none;
-  padding: 6px 8px;
-  border-radius: 8px;
 }
 .topnav a:hover {
   background: #f5f5f5;
+  border-radius: 8px;
 }
 
-/* utilities */
-.muted {
-  color: #777;
-}
-
-/* buttons */
+/* === BUTTONS === */
 .btn {
+  display: inline-flex;
+  align-items: center;
   padding: 8px 12px;
   border: 1px solid #222;
   background: #222;
   color: #fff;
   border-radius: 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
-.btn[disabled] {
-  opacity: 0.6;
+.btn:hover {
+  filter: brightness(1.1);
+}
+.btn[disabled],
+.btn.disabled {
+  opacity: 0.5;
   cursor: default;
+  pointer-events: none;
 }
 .btn.ghost {
-  background: #fff;
+  background: transparent;
   color: #222;
   border-color: #ccc;
 }
 .btn.primary {
   background: #111;
   border-color: #111;
+}
+
+/* === CHIPS & TAGS === */
+.chip {
+  display: inline-block;
+  padding: 0.25em 0.6em;
+  border-radius: 99px;
+  border: 1px solid #ddd;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  background: #f4f4f4;
+  color: #222;
+  user-select: none;
+}
+a.chip:hover {
+  filter: brightness(0.97);
+}
+.chip--flex {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.chip.src {
+  background: #e8f0fe;
+  border-color: #c8ddff;
+  color: #1d5fbf;
+}
+.chip.ori {
+  background: #fff1e6;
+  border-color: #ffd2a6;
+  color: #b35c00;
+}
+.chip.other {
+  background: #f3e8ff;
+  border-color: #e1c9ff;
+  color: #6b2fb8;
+}
+.chip.studio {
+  background: #fff7cc;
+  border-color: #ffe08a;
+  color: #8a6b00;
+}
+.chip.user {
+  background: #ffe6f1;
+  border-color: #ffb3d1;
+  color: #b83280;
+}
+.chip.pname {
+  background: #e6fbff;
+  border-color: #b8f2ff;
+  color: #0b8fad;
+}
+.chip.badge {
+  background: #e7f7ee;
+  border-color: #bde7cf;
+  color: #2a7d4f;
+  font-weight: 600;
+}
+.chip .x {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.1rem;
+  opacity: 0.7;
+}
+.chip .x:hover {
+  opacity: 1;
+}
+.tagbtn {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #f4f4f4;
+  cursor: pointer;
+}
+.tagbtn.on {
+  background: #1f7a3f;
+  border-color: #1f7a3f;
   color: #fff;
+}
+
+/* === PAGE: LIBRARY (/library) === */
+.library-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.library-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+.library-card {
+  border: 1px solid #e2e2e2;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.library-card .thumb {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: contain;
+  background: #1b1b1b;
+  border-radius: 6px;
+}
+.library-card .filename {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.library-card .meta {
+  font-size: 0.9rem;
+  color: #555;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+}
+.filter-panel {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.filter-panel.perf {
+  background: #e6f3ea;
+  border-color: #c9e6d2;
+}
+.filter-panel.ori {
+  background: #fff1e6;
+  border-color: #ffd2a6;
+}
+.filter-panel.src {
+  background: #e8f0fe;
+  border-color: #c8ddff;
+}
+@media (max-width: 1400px) {
+  .library-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+@media (max-width: 1000px) {
+  .library-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .library-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* === PAGE: MEDIA DETAILS (/media/{id}) === */
+.media-details-grid {
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.player-box {
+  position: relative;
+  width: 100%;
+}
+.player-thumb,
+.player-video {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: contain;
+  background: #111;
+  border-radius: 8px;
+}
+.play-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: #222a;
+  color: #fff;
+  cursor: pointer;
+}
+.player-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.details-section {
+  margin-top: 1rem;
+}
+.details-section dl {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content 1fr;
+  column-gap: 16px;
+  row-gap: 4px;
+  font-size: 0.95rem;
+}
+.details-section dt {
+  font-weight: 600;
+  color: #444;
+}
+.details-section dd {
+  margin: 0;
+}
+.details-section .fullrow {
+  grid-column: 1 / -1;
+}
+.dates2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 6px;
+}
+.dates2 .k {
+  font-weight: 600;
+}
+details.kv {
+  margin: 0.5rem 0;
+}
+details.kv > summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+details.kv > summary::marker {
+  display: none;
+}
+details.kv > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1rem;
+}
+details.kv[open] > summary::before {
+  content: "▾";
+}
+details.kv .kv-body {
+  padding: 0.35rem 0.25rem 0.25rem 1.2rem;
+}
+#dirCrumbs .crumb.selected {
+  outline: 2px solid #1f7a3f;
+  outline-offset: 1px;
+}
+.edit-panel {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f7f7f7;
+}
+.edit-panel > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.edit-panel > summary::before {
+  content: "▸";
+  opacity: 0.7;
+}
+.edit-panel[open] > summary::before {
+  content: "▾";
+}
+.edit-panel .summary-text {
+  flex: 1 1 auto;
+}
+.edit-panel .edit-body {
+  padding: 12px;
+  border-top: 1px solid #e6e6e6;
+}
+.edit-panel .grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.btn.save.idle {
+  opacity: 0.6;
+  cursor: default;
+}
+.btn.save.dirty {
+  background: #c62828;
+  border-color: #c62828;
+  opacity: 1;
+}
+.btn.save.saved {
+  background: #1f7a3f;
+  border-color: #1f7a3f;
+  opacity: 1;
+}
+.pcbtn.on {
+  background: #b8e6c8;
+  border-color: #8dd3ad;
+  color: #0f5132;
+}
+.navline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* === PAGE: SCAN (/scan) === */
+.scan-page .row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.scan-page input[type="number"] {
+  width: 6rem;
+}
+.scan-page pre {
+  background: #111;
+  color: #ddd;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  max-height: 40vh;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.scan-page .ok {
+  color: #3fb950;
+}
+.scan-page .warn {
+  color: #d29922;
+}
+.scan-page .err {
+  color: #f85149;
 }

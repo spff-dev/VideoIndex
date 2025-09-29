@@ -1,79 +1,30 @@
 @page "/library"
 @model VideoIndex.Web.Pages.Library.IndexModel
 
-
 @{
     ViewData["Title"] = "Library";
 }
 
 @await Html.PartialAsync("_TopNav")
 
-<link rel="stylesheet" href="/css/tags.css" />
-
-<style>
-  .toolbar { display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:end; margin-bottom:12px; }
-  .filters { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
-  .field { display:flex; flex-direction:column; gap:6px; }
-  .hstack { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
-  input[type="number"], select { padding:6px 8px; border:1px solid #ccc; border-radius:6px; font-size:14px; }
-  .tagbtn { padding:6px 10px; border:1px solid #ccc; border-radius:999px; background:#f4f4f4; cursor:pointer; }
-  .tagbtn.on { color:#fff; } /* group-specific .on backgrounds come from tags.css */
-  .grid { display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:12px; }
-  .card { min-width: 0; border:1px solid #e2e2e2; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:6px; text-decoration:none; color:inherit;}
-  .card .muted, .card .meta, .card .chip { text-decoration:none; }
-  .card .filename { white-space: normal; word-break: break-word; overflow-wrap: anywhere; }
-  .thumb { width:100%; aspect-ratio:1/1; object-fit:contain; background:#1b1b1b; border-radius:6px; }
-  .meta { font-size:.9rem; color:#555; display:flex; flex-wrap:wrap; gap:.35rem .5rem; }
-  .chip { display:inline-flex; align-items:center; gap:.35rem; padding:.05rem .45rem; border:1px solid #ccc; border-radius:999px; font-size:.85rem; }
-  .chip.clickable { cursor: pointer; }
-  .chip.clickable:hover { filter: brightness(0.95); }
-  .chip.meta { background:#111; border-color:#111; color:#fff; }
-  .chip.filtered { filter:saturate(1.15) brightness(1.05); font-weight:600; }
-  .muted { color:#777; }
-  .btn { padding:8px 12px; border:1px solid #222; background:#222; color:#fff; border-radius:8px; cursor:pointer; }
-  .btn[disabled] { opacity:.6; cursor:default; }
-  .btn.ghost { background:#fff; color:#222; border-color:#ccc; }
-  .countbar { display:flex; justify-content:space-between; align-items:center; margin:10px 0; }
-
-  /* Group panels */
-  .panel { padding:10px; border-radius:8px; border:1px solid transparent; }
-  .panel.perf { background:#e6f3ea; border-color:#c9e6d2; }   /* greenish */
-  .panel.ori  { background:#fff1e6; border-color:#ffd2a6; }   /* orange tint */
-  .panel.src  { background:#e8f0fe; border-color:#c8ddff; }   /* blue tint */
-  .panel.scan { background:#f7f7f7; border-color:#e3e3e3; }   /* light gray */
-
-  /* Folder scope chip */
-  .chip.folder { background:#e8f0fe; border-color:#c8ddff; }
-  /* NEW: allow multi-line full paths */
-  .chip.folder { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
-  .chip.folder .path { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-  .chip .x { border:0; background:transparent; cursor:pointer; font-size:1rem; line-height:1; padding:0 .25rem; }
-
-  @@media (max-width: 1400px){ .grid { grid-template-columns: repeat(4, minmax(0,1fr)); } }
-  @@media (max-width: 1000px){ .grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
-  @@media (max-width: 700px){ .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-</style>
-
 <h1>Library</h1>
 
-<div class="toolbar">
-  <div id="filtersWrap" class="filters">
+<div class="library-toolbar">
+  <div id="filtersWrap" class="library-filters">
 
-  <!-- Number of Performers -->
-  <div class="field panel perf">
-    <label>Number of Performers</label>
-    <div class="hstack">
-      <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
-      <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
-      <button type="button" class="tagbtn quick-perf" data-min="1" data-max="99">All</button>
-      <button type="button" class="tagbtn quick-perf" data-min="1" data-max="1">Solo</button>
-      <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
-      <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
+    <div class="field filter-panel perf">
+      <label>Number of Performers</label>
+      <div class="hstack">
+        <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
+        <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
+        <button type="button" class="tagbtn quick-perf" data-min="1" data-max="99">All</button>
+        <button type="button" class="tagbtn quick-perf" data-min="1" data-max="1">Solo</button>
+        <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
+        <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
+      </div>
     </div>
-  </div>
 
-    <!-- Orientation -->
-    <div class="field panel ori">
+    <div class="field filter-panel ori">
       <label>Orientation</label>
       <div class="hstack" id="oriGroup">
         <button type="button" class="tagbtn" data-ori="Gay">Gay</button>
@@ -83,9 +34,8 @@
         <button type="button" class="tagbtn" data-ori="MtF Trans">MtF Trans</button>
       </div>
     </div>
-
-    <!-- SourceType -->
-    <div class="field panel src">
+    
+    <div class="field filter-panel src">
       <label>Source type</label>
       <div class="hstack" id="srcGroup">
         <button type="button" class="tagbtn" data-src="Studio">Studio</button>
@@ -123,7 +73,7 @@
       <option value="year_desc">Year (newest)</option>
       <option value="year_asc">Year (oldest)</option>
     </select>
-
+    
     <div class="hstack" style="margin-top:.5rem;">
       <button id="toggleFilters" class="btn ghost" type="button">Hide filters</button>
       <button id="resetAll" class="btn ghost" type="button">Show all</button>
@@ -131,15 +81,14 @@
   </div>
 </div>
 
-<!-- Active scope (folder) chip -->
 <div id="scopeBar" class="hstack" style="margin:4px 0 10px 0;"></div>
 
-<div class="countbar">
+<div class="hstack" style="justify-content:space-between; margin:10px 0;">
   <div><b id="totalCount">0</b> total</div>
   <div class="muted">Showing <span id="shownCount">0</span> of 36 per page</div>
 </div>
 
-<div id="grid" class="grid"></div>
+<div id="grid" class="library-grid"></div>
 
 <div style="margin-top:12px;">
   <button id="loadMore" class="btn">Load more</button>
@@ -158,7 +107,6 @@
   let skip = 0;
   let total = 0;
   let filtersHidden = false;
-
   // ---- URL helpers ----
   function getParams(){
     const u = new URL(location.href);
@@ -167,7 +115,6 @@
   function setParams(updates){
     const u = new URL(location.href);
     const sp = u.searchParams;
-    // NOTE: do not clear 'dir' / 'recursive' here so they persist unless explicitly removed.
     ["source","orientation","minPerformers","maxPerformers","sort","skip","q"].forEach(k=>sp.delete(k));
     for (const [k,v] of Object.entries(updates)){
       if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length===0)) continue;
@@ -191,7 +138,6 @@
   }
   function basename(p){
     if (!p) return "";
-    // handle both slashes
     const parts = p.split(/[\\/]+/).filter(Boolean);
     return parts.length ? parts[parts.length-1] : p;
   }
@@ -218,7 +164,8 @@
     if (maxP) $("#maxPerf").value = maxP;
     const sort = sp.get("sort");
     if (sort) $("#sortSel").value = sort;
-    skip = parseInt(sp.get("skip") || "0", 10); if (Number.isNaN(skip) || skip<0) skip = 0;
+    skip = parseInt(sp.get("skip") || "0", 10);
+    if (Number.isNaN(skip) || skip<0) skip = 0;
     const qInit = sp.get("q");
     if (qInit) $("#searchBox").value = qInit;
     $$("#srcGroup .tagbtn").forEach(b=> b.classList.toggle("on", srcSel.has(b.getAttribute("data-src"))));
@@ -226,7 +173,7 @@
     updateQuickPerfButtons();
   }
 
-  // Normalize API item (supports camelCase or PascalCase)
+  // Normalize API item
   function norm(it){
     return {
       Id: it.Id ?? it.id,
@@ -249,7 +196,6 @@
   // ---- rendering ----
   function card(raw){
     const item = norm(raw);
-
     const res = (item.Width && item.Height) ? `${item.Width}×${item.Height}` : "—";
     const len = item.LengthHuman ?? "—";
     const statsHtml = `
@@ -257,7 +203,6 @@
       <span class="chip meta">Len: ${len}</span>
       <span class="chip meta">Res: ${res}</span>
     `;
-
     const oriHtml = (item.OrientationTags || [])
       .filter(Boolean)
       .map(t=>{
@@ -265,7 +210,6 @@
         return `<span class="chip ori clickable${filtered}" data-ori="${escapeHtml(t)}">${escapeHtml(t)}</span>`;
       })
       .join(" ");
-
     const pc = item.PerformerCount;
     const perfBadge = badgeFromCountForCard(pc);
     const perfFiltered = isPerformerFilterActiveFor(pc) ? " filtered" : "";
@@ -276,7 +220,6 @@
             ? `<span class="chip perf clickable${perfFiltered}" data-min="2" data-max="2">${perfBadge}</span>`
             : `<span class="chip perf clickable${perfFiltered}" data-min="3" data-max="99">${perfBadge}</span>`)
       : "";
-
     const srcHtml = (item.SourceTypes || [])
       .filter(Boolean)
       .map(t=>{
@@ -284,14 +227,11 @@
         return `<span class="chip src clickable${filtered}" data-src="${escapeHtml(t)}">${escapeHtml(t)}</span>`;
       })
       .join(" ");
-
     return `
-      <a class="card" href="/media/${item.Id}">
+      <a class="library-card" href="/media/${item.Id}">
         <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
         <div class="muted filename">${escapeHtml(item.Filename)}</div>
-
         <div class="meta">${statsHtml}</div>
-
         <div class="meta">
           ${oriHtml}
           ${perfHtml}
@@ -333,30 +273,23 @@
   function renderScopeBar(){
     const { dir, recursive } = getFolderFilterFromUrl();
     const bar = $("#scopeBar");
-    if (!bar) return;                 // ensure the container exists
+    if (!bar) return;
     bar.innerHTML = "";
     if (!dir) return;
 
     const chip = document.createElement("span");
-    chip.className = "chip folder";
+    chip.className = "chip chip--flex folder";
     chip.title = dir;
-
-    // insert zero-width spaces after / or \ so the path can wrap
-    const breakable = escapeHtml(dir).replace(/([\\/])/g, '$1&#8203;'); // &#8203; = ZWSP
+    const breakable = escapeHtml(dir).replace(/([\\/])/g, '$1&#8203;');
 
     chip.innerHTML =
       `📁 <span class="path">${breakable}</span>` +
       (recursive ? " (all subfolders)" : "") +
       ` <button type="button" id="clearFolderFilter" class="x" title="Clear folder filter">×</button>`;
-
     bar.appendChild(chip);
 
-    // clear button
     $("#clearFolderFilter")?.addEventListener("click", () => {
-      const u = new URL(location.href);
-      u.searchParams.delete("dir");
-      u.searchParams.delete("recursive");
-      history.replaceState({}, "", u.toString());
+      clearFolderFilterInUrl();
       reload(true);
     });
   }
@@ -365,14 +298,12 @@
   async function fetchPage(append=false){
     $("#status").textContent = "loading…";
     $("#loadMore").disabled = true;
-
     const params = new URLSearchParams();
     params.set("skip", String(skip));
     params.set("take", String(TAKE));
 
     const q = ($("#searchBox").value ?? "").trim();
     if (q) params.set("q", q);
-
     if (srcSel.size) params.set("source", [...srcSel].join(","));
     if (oriSel.size) params.set("orientation", [...oriSel].join(","));
 
@@ -383,7 +314,6 @@
 
     params.set("sort", $("#sortSel").value);
 
-    // NEW: pass folder scope to API
     const { dir, recursive } = getFolderFilterFromUrl();
     if (dir) {
       params.set("dir", dir);
@@ -447,26 +377,18 @@
     $$("#srcGroup .tagbtn").forEach(b=> b.classList.remove("on"));
     $$("#oriGroup .tagbtn").forEach(b=> b.classList.remove("on"));
     updateQuickPerfButtons();
-    clearFolderFilterInUrl(); // also clear folder scope
+    clearFolderFilterInUrl();
     reload(true);
   }
 
   function debounce(fn, ms){ let t; return function(...args){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args), ms); }; }
   function scrollTopSmooth(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
-    // ---------- page init ----------
+  // ---------- page init ----------
   document.addEventListener("DOMContentLoaded", () => {
-    // Library init
     readFromUrl();
     renderScopeBar();
     reload(false);
-
-    $("#scopeBar").addEventListener("click", (e)=>{
-      const btn = e.target.closest("#clearFolderFilter");
-      if (!btn) return;
-      clearFolderFilterInUrl();
-      reload(true);
-    });
 
     $("#oriGroup").addEventListener("click", (e)=>{
       const btn = e.target.closest('.tagbtn'); if (!btn) return;
@@ -484,10 +406,10 @@
       reload();
     });
 
-    // Clickable chips on cards → apply filter and reload
     $("#grid").addEventListener("click", (e)=>{
       const chip = e.target.closest(".chip.clickable");
       if (!chip) return;
+      e.preventDefault(); e.stopPropagation();
 
       const vSrc = chip.dataset.src;
       const vOri = chip.dataset.ori;
@@ -516,40 +438,33 @@
       }
 
       if (changed) reload();
-      e.preventDefault();
-      e.stopPropagation();
     });
 
-  document.addEventListener("click", (e) => {
-    const b = e.target.closest('.quick-perf'); 
-    if (!b) return;
-
-    // If this button’s range is already active → clicking it clears the performers filter
-    if (quickPerfMatches(b)) {
-      $("#minPerf").value = "";
-      $("#maxPerf").value = "";
-    } else {
-      $("#minPerf").value = b.getAttribute("data-min") ?? "";
-      $("#maxPerf").value = b.getAttribute("data-max") ?? "";
-    }
-
-    updateQuickPerfButtons();
-    scrollTopSmooth();
-    reload();
-  });
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest('.quick-perf'); 
+      if (!b) return;
+      if (quickPerfMatches(b)) {
+        $("#minPerf").value = "";
+        $("#maxPerf").value = "";
+      } else {
+        $("#minPerf").value = b.getAttribute("data-min") ?? "";
+        $("#maxPerf").value = b.getAttribute("data-max") ?? "";
+      }
+      updateQuickPerfButtons();
+      scrollTopSmooth();
+      reload();
+    });
 
     $("#minPerf").addEventListener("change", ()=> { reload(); updateQuickPerfButtons(); });
     $("#maxPerf").addEventListener("change", ()=> { reload(); updateQuickPerfButtons(); });
 
     $("#sortSel").addEventListener("change", ()=> reload());
-
     const onSearch = debounce(()=> reload(), 300);
     $("#searchBox").addEventListener("input", onSearch);
     $("#clearSearch").addEventListener("click", ()=>{
       $("#searchBox").value = "";
       reload();
     });
-
     $("#loadMore").addEventListener("click", ()=>{
       skip += TAKE;
       setParams({

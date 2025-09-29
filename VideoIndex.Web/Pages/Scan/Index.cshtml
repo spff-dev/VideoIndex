@@ -7,54 +7,34 @@
 
 @await Html.PartialAsync("_TopNav")
 
-<style>
-  .row { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom: .75rem; }
-  label { font-weight:600; }
-  input[type="number"] { width: 6rem; }
-  pre { background:#111; color:#ddd; padding: .75rem; border-radius: .5rem; max-height: 40vh; overflow:auto; }
-  .muted { color:#777; font-size:.9rem; }
-  .ok { color: #3fb950; }
-  .warn { color: #d29922; }
-  .err { color: #f85149; }
-</style>
+<div class="scan-page">
+    <h1>Live Scan</h1>
 
-<h1>Live Scan</h1>
+    <div class="row">
+      <label for="rootSelect">Root:</label>
+      <select id="rootSelect">
+        @foreach (var r in Model.Roots)
+        {
+          <option value="@r.Id">@r.Name (@r.Path)</option>
+        }
+      </select>
+      <button id="startBtn">Start scan</button>
+      <span id="status" class="muted">idle</span>
+    </div>
 
-<div class="row">
-  <label for="rootSelect">Root:</label>
-  <select id="rootSelect">
-    @foreach (var r in Model.Roots)
-    {
-      <option value="@r.Id">@r.Name (@r.Path)</option>
-    }
-  </select>
+    <div class="row" style="width:100%;">
+      <progress id="prog" value="0" max="100" style="width: 360px;"></progress>
+      <span id="counts" class="muted"></span>
+    </div>
 
-  <label for="workers">Workers</label>
-  <input id="workers" type="number" value="8" min="1" max="24" />
+    <div class="row">
+        </div>
 
-  <label for="thumbs">Generate thumbnails</label>
-  <input id="thumbs" type="checkbox" checked />
-
-  <label for="regenAll">Regenerate all thumbnails</label>
-  <input id="regenAll" type="checkbox" />
-
-  <button id="startBtn">Start scan</button>
-  <span id="status" class="muted">idle</span>
+    <pre id="log"></pre>
 </div>
 
-<div class="row" style="width:100%;">
-  <progress id="prog" value="0" max="100" style="width: 360px;"></progress>
-  <span id="counts" class="muted"></span>
-</div>
 
-<div class="row">
-  <label for="autoTagDryRun">Auto-tag (dry run)</label>
-  <input id="autoTagDryRun" type="checkbox" checked />
-  <label for="autoTagBatch">Batch size</label>
-  <input id="autoTagBatch" type="number" value="500" min="50" max="2000" />
-  <button id="autoTagAllBtn" type="button">Auto-tag entire library</button>
-</div>
-
+<script src="https://unpkg.com/%40microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
 <script>
   document.querySelector("#autoTagAllBtn")?.addEventListener("click", async () => {
     const dry = document.querySelector("#autoTagDryRun").checked;

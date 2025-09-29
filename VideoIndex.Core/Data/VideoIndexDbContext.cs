@@ -43,6 +43,11 @@ namespace VideoIndex.Core.Data
             var mf = modelBuilder.Entity<MediaFile>();
             mf.HasIndex(x => x.Path).IsUnique();
             mf.HasIndex(x => x.Sha256);
+            mf.HasIndex(x => x.UpdatedAt);
+            mf.HasIndex(x => x.Year);
+            mf.HasIndex(x => x.PerformerCount);
+            mf.HasIndex(x => x.RootId);
+            mf.HasIndex(x => x.Filename);
 
             // Apply converter + comparer to all List<string> props
             mf.Property(x => x.PerformerNames).HasConversion(listConverter).Metadata.SetValueComparer(listComparer);
