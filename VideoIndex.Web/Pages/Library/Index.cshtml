@@ -19,8 +19,9 @@
   .tagbtn { padding:6px 10px; border:1px solid #ccc; border-radius:999px; background:#f4f4f4; cursor:pointer; }
   .tagbtn.on { color:#fff; } /* group-specific .on backgrounds come from tags.css */
   .grid { display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:12px; }
-  .card { border:1px solid #e2e2e2; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:6px; text-decoration:none; color:inherit;}
+  .card { min-width: 0; border:1px solid #e2e2e2; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:6px; text-decoration:none; color:inherit;}
   .card .muted, .card .meta, .card .chip { text-decoration:none; }
+  .card .filename { white-space: normal; word-break: break-word; overflow-wrap: anywhere; }
   .thumb { width:100%; aspect-ratio:1/1; object-fit:contain; background:#1b1b1b; border-radius:6px; }
   .meta { font-size:.9rem; color:#555; display:flex; flex-wrap:wrap; gap:.35rem .5rem; }
   .chip { display:inline-flex; align-items:center; gap:.35rem; padding:.05rem .45rem; border:1px solid #ccc; border-radius:999px; font-size:.85rem; }
@@ -57,17 +58,19 @@
 
 <div class="toolbar">
   <div id="filtersWrap" class="filters">
-    <!-- Performer count -->
-    <div class="field panel perf">
-      <label>Performers</label>
-      <div class="hstack">
-        <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
-        <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
-        <button type="button" class="tagbtn quick-perf" data-min="1" data-max="1">Solo</button>
-        <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
-        <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
-      </div>
+
+  <!-- Number of Performers -->
+  <div class="field panel perf">
+    <label>Number of Performers</label>
+    <div class="hstack">
+      <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
+      <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
+      <button type="button" class="tagbtn quick-perf" data-min="1" data-max="99">All</button>
+      <button type="button" class="tagbtn quick-perf" data-min="1" data-max="1">Solo</button>
+      <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
+      <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
     </div>
+  </div>
 
     <!-- Orientation -->
     <div class="field panel ori">
@@ -103,7 +106,7 @@
   <div class="field">
     <label>Search</label>
     <div class="hstack">
-      <input id="searchBox" type="text" placeholder="Search filename, tags, performers, studio, year…" style="min-width:18rem">
+      <input id="searchBox" type="text" placeholder="Search filename, path/folders, tags, performers, studio, source user, year…" style="min-width:18rem">
       <button id="clearSearch" class="btn ghost" type="button" title="Clear">×</button>
     </div>
 
@@ -142,9 +145,6 @@
   <button id="loadMore" class="btn">Load more</button>
   <span id="status" class="muted" style="margin-left:.5rem;"></span>
 </div>
-
-<!-- SignalR for scan progress -->
-<script src="https://unpkg.com/%40microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
 
 <script>
   const $ = s => document.querySelector(s);
@@ -288,7 +288,7 @@
     return `
       <a class="card" href="/media/${item.Id}">
         <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
-        <div class="muted">${escapeHtml(item.Filename)}</div>
+        <div class="muted filename">${escapeHtml(item.Filename)}</div>
 
         <div class="meta">${statsHtml}</div>
 
@@ -454,180 +454,7 @@
   function debounce(fn, ms){ let t; return function(...args){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args), ms); }; }
   function scrollTopSmooth(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
-  // ---------- Mini Scan: client ----------
-  const scan = {
-    connection: null,
-    roots: [],
-    overallTotal: 0,
-    processedSoFar: 0,
-    currentRootTotal: 0,
-
-    log(msg, cls){
-      const pre = $("#scanLog");
-      const time = new Date().toLocaleTimeString();
-      const line = `[${time}] ${msg}\n`;
-      const span = document.createElement("span");
-      if (cls) span.className = cls;
-      span.textContent = line;
-      pre.appendChild(span);
-      pre.scrollTop = pre.scrollHeight;
-    },
-
-    setStatus(s){ $("#scanStatus").textContent = s; },
-    updateCounts(proc, total, indexed, thumbsMade, errors){
-      $("#scanCounts").textContent = `${proc} / ${total} processed • indexed: ${indexed} • thumbs: ${thumbsMade} • errors: ${errors}`;
-      const prog = $("#scanProg");
-      prog.max = Math.max(total, 1);
-      prog.value = Math.min(proc, total);
-    },
-
-    async getRoots(){
-      const r = await fetch("/api/roots");
-      if (!r.ok) throw new Error("Failed to fetch roots");
-      return await r.json();
-    },
-
-    async dryRunAll(roots){
-      let sum = 0;
-      await Promise.all(roots.map(async (rt)=>{
-        try{
-          const res = await fetch(`/api/roots/${rt.id}/scan-dry-run`);
-          if (!res.ok) return;
-          const js = await res.json();
-          sum += (js.discovered || 0);
-        }catch{}
-      }));
-      return sum;
-    },
-
-    async start(){
-      $("#btnScanAll").disabled = true;
-      $("#scanLog").textContent = "";
-      this.setStatus("preparing…");
-
-      const workers = Math.max(1, Math.min(24, parseInt($("#scanWorkers").value, 10) || 8));
-      const thumbs = $("#scanThumbs").checked;
-      const regenAll = $("#scanRegenAll").checked;
-
-      try{
-        this.roots = await this.getRoots();
-      }catch(e){
-        this.log(`Failed to fetch roots: ${e}`, "err");
-        this.setStatus("error");
-        $("#btnScanAll").disabled = false;
-        return;
-      }
-      if (!this.roots || this.roots.length === 0){
-        this.log("No roots configured.", "warn");
-        this.setStatus("idle");
-        $("#btnScanAll").disabled = false;
-        return;
-      }
-
-      this.overallTotal = await this.dryRunAll(this.roots);
-      this.processedSoFar = 0;
-      this.currentRootTotal = 0;
-
-      const base = location.origin;
-      const scanId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-      this.connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${base}/hubs/scan`)
-        .withAutomaticReconnect()
-        .configureLogging(signalR.LogLevel.Information)
-        .build();
-
-      let curIndexed = 0, curThumbs = 0, curErrors = 0;
-
-      this.connection.on("progress", evt => {
-        switch (evt.kind) {
-          case "started": {
-            if (!this.overallTotal || this.overallTotal <= 0) {
-              this.overallTotal += (evt.totals.files || 0);
-            }
-            this.currentRootTotal = evt.totals.files || 0;
-            this.setStatus(`running — ${evt.root.name}`);
-            this.log(`Scan started on "${evt.root.name}" (${evt.root.path}) — files: ${this.currentRootTotal}, thumbs: ${evt.totals.thumbsRequested ? "on" : "off"} (regenAll ${regenAll}), workers: ${workers}`, "muted");
-            break;
-          }
-          case "indexError":
-            curErrors++;
-            this.log(`Index error: ${evt.file} — ${evt.error}`, "err");
-            break;
-          case "thumbMade":
-            curThumbs++;
-            this.log(`Thumb ✓ ${evt.file}`, "ok");
-            break;
-          case "thumbError":
-            this.log(`Thumb error: ${evt.file} — ${evt.error}`, "warn");
-            break;
-          case "heartbeat": {
-            const processed = (evt.processed ?? 0);
-            curIndexed = evt.indexed ?? curIndexed;
-            curThumbs = evt.thumbsMade ?? curThumbs;
-            curErrors = evt.errors ?? curErrors;
-            const overallProc = this.processedSoFar + processed;
-            this.updateCounts(overallProc, this.overallTotal, curIndexed, curThumbs, curErrors);
-            break;
-          }
-          case "completed": {
-            const processed = (evt.processed ?? this.currentRootTotal);
-            curIndexed = evt.indexed ?? curIndexed;
-            curThumbs = evt.thumbsMade ?? curThumbs;
-            curErrors = evt.errors ?? curErrors;
-            this.processedSoFar += processed;
-            const overallProc = this.processedSoFar;
-            this.updateCounts(overallProc, this.overallTotal, curIndexed, curThumbs, curErrors);
-            this.log(`Completed "${evt.root?.name ?? "root"}" in ${evt.elapsedMs} ms — processed: ${processed}, indexed: ${curIndexed}, thumbs: ${curThumbs}, errors: ${curErrors}`, "ok");
-            break;
-          }
-        }
-      });
-
-      this.connection.onreconnecting(() => this.setStatus("reconnecting…"));
-      this.connection.onreconnected(() => this.setStatus("running"));
-      this.connection.onclose(() => {
-        if ($("#scanStatus").textContent !== "done") this.setStatus("disconnected");
-      });
-
-      try {
-        await this.connection.start();
-        await this.connection.invoke("JoinScan", scanId);
-        this.log(`Joined scan channel ${scanId}`, "muted");
-      } catch (e) {
-        this.log(`SignalR error: ${e}`, "err");
-        this.setStatus("error");
-        $("#btnScanAll").disabled = false;
-        return;
-      }
-
-      for (let i=0; i<this.roots.length; i++){
-        const r = this.roots[i];
-        this.log(`→ Starting root ${i+1}/${this.roots.length}: ${r.name}`, "muted");
-        const url = `${base}/api/roots/${r.id}/scan-live?scanId=${encodeURIComponent(scanId)}&thumbs=${thumbs}&regenAll=${regenAll}&dop=${encodeURIComponent($("#scanWorkers").value)}`;
-        try{
-          const resp = await fetch(url, { method:"POST" });
-          if (!resp.ok){
-            const txt = await resp.text();
-            this.log(`Scan failed on root "${r.name}": ${resp.status} ${txt}`, "err");
-            this.setStatus("error");
-            break;
-          } else {
-            const summary = await resp.json();
-            this.log(`Root "${r.name}" request completed — discovered: ${summary.scanned}`, "muted");
-          }
-        }catch(e){
-          this.log(`Network error for root "${r.name}": ${e}`, "err");
-          this.setStatus("error");
-          break;
-        }
-      }
-
-      this.setStatus("done");
-      $("#btnScanAll").disabled = false;
-    }
-  };
-
-  // ---------- page init ----------
+    // ---------- page init ----------
   document.addEventListener("DOMContentLoaded", () => {
     // Library init
     readFromUrl();
@@ -693,14 +520,23 @@
       e.stopPropagation();
     });
 
-    document.addEventListener("click", (e)=>{
-      const b = e.target.closest('.quick-perf'); if (!b) return;
-      $("#minPerf").value = b.getAttribute("data-min");
-      $("#maxPerf").value = b.getAttribute("data-max");
-      updateQuickPerfButtons();
-      scrollTopSmooth();
-      reload();
-    });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest('.quick-perf'); 
+    if (!b) return;
+
+    // If this button’s range is already active → clicking it clears the performers filter
+    if (quickPerfMatches(b)) {
+      $("#minPerf").value = "";
+      $("#maxPerf").value = "";
+    } else {
+      $("#minPerf").value = b.getAttribute("data-min") ?? "";
+      $("#maxPerf").value = b.getAttribute("data-max") ?? "";
+    }
+
+    updateQuickPerfButtons();
+    scrollTopSmooth();
+    reload();
+  });
 
     $("#minPerf").addEventListener("change", ()=> { reload(); updateQuickPerfButtons(); });
     $("#maxPerf").addEventListener("change", ()=> { reload(); updateQuickPerfButtons(); });
@@ -730,16 +566,6 @@
 
     $("#toggleFilters").addEventListener("click", toggleFilters);
     $("#resetAll").addEventListener("click", resetAll);
-
-    // Mini scan wiring (guard for missing elements)
-    $("#btnScanAll")?.addEventListener("click", () => scan.start());
-    $("#toggleScanLog")?.addEventListener("click", ()=>{
-      const pre = $("#scanLog");
-      if (!pre) return;
-      const shown = pre.style.display !== "none";
-      pre.style.display = shown ? "none" : "block";
-      $("#toggleScanLog").textContent = shown ? "Show log" : "Hide log";
-    });
   });
 </script>
 

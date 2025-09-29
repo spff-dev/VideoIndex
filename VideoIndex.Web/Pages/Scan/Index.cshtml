@@ -47,6 +47,28 @@
   <span id="counts" class="muted"></span>
 </div>
 
+<div class="row">
+  <label for="autoTagDryRun">Auto-tag (dry run)</label>
+  <input id="autoTagDryRun" type="checkbox" checked />
+  <label for="autoTagBatch">Batch size</label>
+  <input id="autoTagBatch" type="number" value="500" min="50" max="2000" />
+  <button id="autoTagAllBtn" type="button">Auto-tag entire library</button>
+</div>
+
+<script>
+  document.querySelector("#autoTagAllBtn")?.addEventListener("click", async () => {
+    const dry = document.querySelector("#autoTagDryRun").checked;
+    const batch = Math.max(50, Math.min(2000, parseInt(document.querySelector("#autoTagBatch").value || "500", 10)));
+    const url = `/api/autotag/all?dryRun=${dry}&batchSize=${batch}`;
+    const res = await fetch(url, { method: "POST" });
+    const data = await res.json().catch(()=> ({}));
+    const msg = res.ok
+      ? `Auto-tag ${dry ? "(dry run)" : ""} complete.\nTotal: ${data.total ?? "?"}\nChanged: ${data.changed ?? "?"}\nUnchanged: ${data.unchanged ?? "?"}`
+      : `Auto-tag failed: ${res.status}\n${JSON.stringify(data)}`;
+    alert(msg);
+  });
+</script>
+
 <pre id="log"></pre>
 
 <script src="https://unpkg.com/%40microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
@@ -64,6 +86,41 @@ document.addEventListener("DOMContentLoaded", ()=>{
   if (urlRoot) {
     const sel = document.querySelector("#rootSelect");
     if (sel && [...sel.options].some(o => o.value === urlRoot)) sel.value = urlRoot;
+  }
+});
+
+const autoAllBtn  = $("#autoAllBtn");
+const autoDry     = $("#autoDry");
+const autoBatch   = $("#autoBatch");
+const autoStatus  = $("#autoStatus");
+
+autoAllBtn?.addEventListener("click", async () => {
+  try {
+    autoAllBtn.disabled = true;
+    autoStatus.textContent = "running…";
+    log("Auto-tagging started… (this may take a while on large libraries)", "muted");
+
+    const qs = new URLSearchParams({
+      dryRun: String(autoDry.checked),
+      batchSize: String(parseInt(autoBatch.value || "500", 10))
+    });
+
+    const resp = await fetch(`${base}/api/autotag/all?${qs.toString()}`, { method: "POST" });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      log(`Auto-tag failed: ${resp.status} ${JSON.stringify(data)}`, "err");
+      autoStatus.textContent = "error";
+      return;
+    }
+
+    log(`Auto-tag summary — total: ${data.total}, changed: ${data.changed}, unchanged: ${data.unchanged}, dryRun: ${data.dryRun}`, "ok");
+    autoStatus.textContent = "done";
+  } catch (e) {
+    log(`Auto-tag error: ${e}`, "err");
+    autoStatus.textContent = "error";
+  } finally {
+    autoAllBtn.disabled = false;
   }
 });
 

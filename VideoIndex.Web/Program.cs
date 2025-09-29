@@ -437,7 +437,78 @@ app.MapGet("/api/media/nav", async (
     }
 });
 
+// ---------- Auto-tag one item ----------
+app.MapPost("/api/media/{id:int}/autotag", async (
+    int id,
+    bool? dryRun,
+    IDbContextFactory<VideoIndexDbContext> dbFactory
+) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var m = await db.MediaFiles.SingleOrDefaultAsync(x => x.Id == id);
+    if (m is null) return Results.NotFound("Media not found.");
 
+    var before = AutoTagger.Snapshot(m);
+    var changed = AutoTagger.Apply(m, dryRun.GetValueOrDefault(false));
+    if (!dryRun.GetValueOrDefault(false) && changed)
+    {
+        m.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+    }
+
+    var after = AutoTagger.Snapshot(m);
+    return Results.Ok(new
+    {
+        updated = changed && !dryRun.GetValueOrDefault(false),
+        dryRun = dryRun.GetValueOrDefault(false),
+        changes = AutoTagger.Diff(before, after),
+        before,
+        after
+    });
+});
+
+// ---------- Auto-tag all (entire DB) ----------
+app.MapPost("/api/autotag/all", async (
+    bool? dryRun,
+    int? batchSize,
+    IDbContextFactory<VideoIndexDbContext> dbFactory
+) =>
+{
+    var bs = Math.Clamp(batchSize.GetValueOrDefault(500), 50, 2_000);
+    int total = 0, changed = 0, unchanged = 0, skipped = 0;
+
+    await using var db = await dbFactory.CreateDbContextAsync();
+
+    // stream IDs to keep memory down
+    var ids = await db.MediaFiles.AsNoTracking().OrderBy(m => m.Id).Select(m => m.Id).ToListAsync();
+    total = ids.Count;
+
+    for (int ofs = 0; ofs < ids.Count; ofs += bs)
+    {
+        var chunkIds = ids.Skip(ofs).Take(bs).ToList();
+        var set = await db.MediaFiles.Where(m => chunkIds.Contains(m.Id)).ToListAsync();
+
+        foreach (var m in set)
+        {
+            var didChange = AutoTagger.Apply(m, dryRun.GetValueOrDefault(false));
+            if (didChange) changed++; else unchanged++;
+        }
+
+        if (!dryRun.GetValueOrDefault(false))
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    return Results.Ok(new
+    {
+        dryRun = dryRun.GetValueOrDefault(false),
+        total,
+        changed,
+        unchanged,
+        skipped
+    });
+});
 
 // ---------- Meta distincts (updated to new fields) ----------
 app.MapGet("/api/meta/distinct", async (IDbContextFactory<VideoIndexDbContext> dbFactory, string field, int? take) =>
@@ -844,11 +915,9 @@ app.MapGet("/api/media/browse", async (
     if (prefix != null)
         qEF = qEF.Where(m => m.Path.StartsWith(prefix));
 
-    // Prefetch cap for client-side tag filtering + updated sorting.
-    const int PREFETCH_MAX = 5000;
-
-    // Pre-order for stable pagination before client-side sort/filter
-    qEF = qEF.OrderByDescending(m => m.Id).Take(PREFETCH_MAX);
+    // No prefetch cap — search the whole DB.
+    // Keep a deterministic base ordering before client-side work.
+    qEF = qEF.OrderByDescending(m => m.Id);
 
     // Materialize to a strongly-typed anonymous list (not dynamic)
     var pre = await qEF
@@ -864,11 +933,14 @@ app.MapGet("/api/media/browse", async (
             m.Height,
             m.Year,
             m.PerformerCount,
-            m.PerformerNames,   // included for search
+            m.PerformerNames,
             m.SourceTypes,
             m.OrientationTags,
             m.OtherTags,
             m.StudioName,
+            m.SourceUsername,
+            RootName = m.Root != null ? m.Root.Name : null,
+            RootPath = m.Root != null ? m.Root.Path : null,
             m.UpdatedAt
         })
         .ToListAsync();
@@ -906,17 +978,21 @@ app.MapGet("/api/media/browse", async (
         pre = pre.Where(m =>
         {
             // Build the haystack per item
-            var hay = new List<string>(16)
+            var hay = new List<string>(32)
             {
                 m.Filename,
                 m.StudioName ?? "",
-                m.Year?.ToString() ?? ""
+                m.SourceUsername ?? "",     // ← NEW
+                m.Year?.ToString() ?? "",
+                m.Path ?? "",               // ← NEW (full path string)
+                m.RootName ?? "",           // ← NEW (optional, helps if you name roots)
+                m.RootPath ?? ""            // ← NEW (optional)
             };
             if (m.PerformerNames != null) hay.AddRange(m.PerformerNames.Where(s => !string.IsNullOrWhiteSpace(s)));
             if (m.SourceTypes != null) hay.AddRange(m.SourceTypes.Where(s => !string.IsNullOrWhiteSpace(s)));
             if (m.OrientationTags != null) hay.AddRange(m.OrientationTags.Where(s => !string.IsNullOrWhiteSpace(s)));
             if (m.OtherTags != null) hay.AddRange(m.OtherTags.Where(s => !string.IsNullOrWhiteSpace(s)));
-
+            hay.AddRange(PathTokens(m.Path));
             return MatchesAny(hay, clauses);
         }).ToList();
     }
@@ -969,6 +1045,21 @@ app.MapGet("/api/media/browse", async (
         => string.IsNullOrWhiteSpace(s)
            ? new List<string>()
            : s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+    static IEnumerable<string> PathTokens(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) yield break;
+
+        // yield the full path once (already added above; this is defensive)
+        // yield return path;
+
+        // split on both separators
+        var parts = Regex.Split(path, "[\\\\/]+")
+                         .Where(p => !string.IsNullOrWhiteSpace(p));
+
+        foreach (var p in parts)
+            yield return p;
+    }
 
     static string FirstOrEmpty(List<string>? xs)
         => (xs != null && xs.Count > 0) ? xs[0] : "";
@@ -1030,6 +1121,8 @@ app.MapGet("/api/media/browse", async (
         return false;
     }
 });
+
+
 
 
 app.MapHub<ScanHub>("/hubs/scan");
@@ -1198,6 +1291,124 @@ static class ProbeParser
         if (!double.TryParse(denStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var den)) return null;
         if (den == 0) return null;
         return num / den;
+    }
+}
+// ---------- AutoTagger helper ----------
+static class AutoTagger
+{
+    // Rules:
+    // - If file name OR path contains "OnlyFans" (or "Only Fans") -> add SourceTypes: OnlyFans + Amateur
+    //   If path contains segment "OnlyFans" (or "Only Fans"), next segment is SourceUsername.
+    // - If path contains segment "Studios", next segment is StudioName and add SourceTypes: Studio
+    // - Always add "x-auto-tagged" to OtherTags.
+    // - Never remove existing values. Do not overwrite StudioName/SourceUsername if they already exist.
+    // - Case-insensitive, tolerant to slashes and spaces in segment names.
+    public static bool Apply(MediaFile m, bool dryRun)
+    {
+        var fp = SafeFullPath(m.Path);
+        var filename = m.Filename ?? "";
+
+        // normalize segments
+        var segs = SplitSegments(fp);
+        static string normSeg(string s) => s.Replace(" ", ""); // keep it simple & widely supported
+
+        // ensure collections
+        var src = new HashSet<string>(m.SourceTypes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+        var other = new HashSet<string>(m.OtherTags ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+
+        bool changed = false;
+
+        // always mark with safety tag
+        if (!other.Contains("x-auto-tagged")) { other.Add("x-auto-tagged"); changed = true; }
+
+        // detect OnlyFans in name or path
+        bool hasOnlyFansText = Regex.IsMatch(fp ?? "", @"only\s*fans", RegexOptions.IgnoreCase)
+                            || Regex.IsMatch(filename, @"only\s*fans", RegexOptions.IgnoreCase);
+
+        if (hasOnlyFansText)
+        {
+            if (!src.Contains("OnlyFans")) { src.Add("OnlyFans"); changed = true; }
+            if (!src.Contains("Amateur")) { src.Add("Amateur"); changed = true; }
+
+            // username = next segment after the "OnlyFans" segment, if we can find it
+            var idx = segs.FindIndex(s => normSeg(s).Equals("onlyfans", StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0 && idx + 1 < segs.Count)
+            {
+                var cand = segs[idx + 1];
+                if (string.IsNullOrWhiteSpace(m.SourceUsername))
+                {
+                    m.SourceUsername = cand;
+                    changed = true;
+                }
+            }
+        }
+
+        // detect Studios
+        {
+            var idx = segs.FindIndex(s => s.Equals("Studios", StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0 && idx + 1 < segs.Count)
+            {
+                if (!src.Contains("Studio")) { src.Add("Studio"); changed = true; }
+
+                var studio = segs[idx + 1];
+                if (string.IsNullOrWhiteSpace(m.StudioName))
+                {
+                    m.StudioName = studio;
+                    changed = true;
+                }
+            }
+        }
+
+        // write back if any list changed
+        var newSrc = src.Count > 0 ? src.ToList() : null;
+        var newOther = other.Count > 0 ? other.ToList() : null;
+
+        // stabilize order (purely aesthetic)
+        if (newSrc != null) newSrc.Sort(StringComparer.OrdinalIgnoreCase);
+        if (newOther != null) newOther.Sort(StringComparer.OrdinalIgnoreCase);
+
+        if (!ListsEqual(m.SourceTypes, newSrc)) { m.SourceTypes = newSrc; changed = true; }
+        if (!ListsEqual(m.OtherTags, newOther)) { m.OtherTags = newOther; changed = true; }
+
+        if (dryRun) return changed; // caller won't save
+
+        return changed;
+    }
+
+    public static object Snapshot(MediaFile m) => new
+    {
+        sourceTypes = m.SourceTypes ?? new List<string>(),
+        otherTags = m.OtherTags ?? new List<string>(),
+        studioName = m.StudioName,
+        sourceUsername = m.SourceUsername
+    };
+
+    public static object Diff(object before, object after) => new { before, after };
+
+    static string SafeFullPath(string p)
+    {
+        try { return Path.GetFullPath(p ?? ""); } catch { return p ?? ""; }
+    }
+
+    static List<string> SplitSegments(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return new List<string>();
+        var norm = path.Replace('/', Path.DirectorySeparatorChar);
+        var parts = norm.Split(Path.DirectorySeparatorChar)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Select(s => s.Trim())
+                        .ToList();
+        return parts;
+    }
+
+    static bool ListsEqual(List<string>? a, List<string>? b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a == null || b == null) return (a == null && b == null);
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+            if (!a[i].Equals(b[i], StringComparison.OrdinalIgnoreCase)) return false;
+        return true;
     }
 }
 
