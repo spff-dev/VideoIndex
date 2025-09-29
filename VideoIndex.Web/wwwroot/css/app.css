@@ -57,6 +57,13 @@ textarea {
   flex-wrap: wrap;
 }
 
+input:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid #b8e6c8;
+  outline-offset: 1px;
+}
+
 /* === LAYOUT === */
 main.page {
   max-width: 1200px;
@@ -186,6 +193,11 @@ a.chip:hover {
 .chip .x:hover {
   opacity: 1;
 }
+.library-card .chip.meta {
+  background-color: #424242;
+  border-color: #212121;
+  color: #fff;
+}
 .tagbtn {
   padding: 6px 10px;
   border: 1px solid #ccc;
@@ -222,16 +234,33 @@ a.chip:hover {
 }
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
+@media (max-width: 1200px) {
+  .library-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .library-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .library-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
 .library-card {
-  border: 1px solid #e2e2e2;
+  border: 1px solid #b8b8b8;
+  background-color: #f3f3f3;
   border-radius: 8px;
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: all 0.2s ease;
 }
 .library-card .thumb {
   width: 100%;
@@ -251,6 +280,11 @@ a.chip:hover {
   flex-wrap: wrap;
   gap: 0.35rem 0.5rem;
 }
+.library-card:hover {
+  border-color: #b8e6c8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
 .filter-panel {
   padding: 10px;
   border-radius: 8px;
@@ -267,21 +301,6 @@ a.chip:hover {
 .filter-panel.src {
   background: #e8f0fe;
   border-color: #c8ddff;
-}
-@media (max-width: 1400px) {
-  .library-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-@media (max-width: 1000px) {
-  .library-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-@media (max-width: 700px) {
-  .library-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 /* Highlight style for active performer buttons (Solo, Duo, etc.) */
@@ -339,6 +358,34 @@ a.chip:hover {
 }
 .toggle-switch input:checked ~ .label-and {
   color: #111;
+}
+
+/* === UPGRADED LIBRARY FILTER PANELS === */
+.filter-panel {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.25rem 0.75rem 0.75rem; /* Add top padding to make space for the legend */
+  position: relative;
+  margin-top: 0.5em; /* Add top margin for the legend */
+}
+.filter-panel legend {
+  font-weight: 600;
+  font-size: 1em;
+  padding: 0 0.5em;
+  margin-left: 0.5em;
+  background: #eee;
+  color: #000;
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  border: 1px solid;
+  border-radius: 8px;
+  border-color: #000;
+}
+/* Remove default fieldset padding which can interfere */
+fieldset {
+  padding-inline-start: 0;
+  padding-inline-end: 0;
 }
 
 /* === PAGE: MEDIA DETAILS (/media/{id}) === */

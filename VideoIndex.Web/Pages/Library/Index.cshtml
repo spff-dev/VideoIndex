@@ -12,8 +12,8 @@
 <div class="library-toolbar">
   <div id="filtersWrap" class="library-filters">
 
-    <div class="field filter-panel perf">
-      <label>Number of Performers</label>
+    <fieldset class="filter-panel perf">
+      <legend>Number of Performers</legend>
       <div class="hstack">
         <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
         <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
@@ -22,30 +22,30 @@
         <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
         <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
       </div>
-    </div>
+    </fieldset>
 
-    <div class="field filter-panel ori">
-      <label>Orientation</label>
-      <div class="hstack" id="oriGroup">
+  <fieldset class="filter-panel ori">
+    <legend>Orientation</legend>
+    <div class="hstack" id="oriGroup">
         <button type="button" class="tagbtn" data-ori="Gay">Gay</button>
         <button type="button" class="tagbtn" data-ori="Straight">Straight</button>
         <button type="button" class="tagbtn" data-ori="Bi">Bi</button>
         <button type="button" class="tagbtn" data-ori="FtM Trans">FtM Trans</button>
         <button type="button" class="tagbtn" data-ori="MtF Trans">MtF Trans</button>
-      </div>
-    </div>
+        </div>
+  </fieldset>
     
-    <div class="field filter-panel src">
-  <div class="hstack" style="justify-content: space-between;">
-    <label>Source type</label>
-    <label class="toggle-switch" title="Switch filter logic">
-      <span class="label-or">OR</span>
-      <input type="checkbox" id="sourceLogicToggle">
-      <span class="slider"></span>
-      <span class="label-and">AND</span>
-    </label>
-    </div>
-  <div class="hstack" id="srcGroup">
+    <fieldset class="filter-panel src">
+    <legend>
+        <span>Source type</span>
+        <label class="toggle-switch" title="Switch filter logic">
+            <span class="label-or">OR</span>
+            <input type="checkbox" id="sourceLogicToggle">
+            <span class="slider"></span>
+            <span class="label-and">AND</span>
+        </label>
+    </legend>
+    <div class="hstack" id="srcGroup">
         <button type="button" class="tagbtn" data-src="Studio">Studio</button>
         <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
         <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
@@ -58,7 +58,7 @@
         <button type="button" class="tagbtn" data-src="Animated">Animated</button>
         <button type="button" class="tagbtn" data-src="Unknown">Unknown</button>
       </div>
-    </div>
+    </fieldset>
   </div>
 
   <div class="field">
@@ -225,10 +225,10 @@
     const perfFiltered = isPerformerFilterActiveFor(pc) ? " filtered" : "";
     const perfHtml = (pc != null)
       ? (pc === 1
-          ? `<span class="chip perf clickable${perfFiltered}" data-min="1" data-max="1">${perfBadge}</span>`
+          ? `<span class="chip badge clickable${perfFiltered}" data-min="1" data-max="1">${perfBadge}</span>`
           : pc === 2
-            ? `<span class="chip perf clickable${perfFiltered}" data-min="2" data-max="2">${perfBadge}</span>`
-            : `<span class="chip perf clickable${perfFiltered}" data-min="3" data-max="99">${perfBadge}</span>`)
+            ? `<span class="chip badge clickable${perfFiltered}" data-min="2" data-max="2">${perfBadge}</span>`
+            : `<span class="chip badge clickable${perfFiltered}" data-min="3" data-max="99">${perfBadge}</span>`)
       : "";
     const srcHtml = (item.SourceTypes || [])
       .filter(Boolean)
