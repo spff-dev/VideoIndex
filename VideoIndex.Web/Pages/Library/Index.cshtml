@@ -36,8 +36,16 @@
     </div>
     
     <div class="field filter-panel src">
-      <label>Source type</label>
-      <div class="hstack" id="srcGroup">
+  <div class="hstack" style="justify-content: space-between;">
+    <label>Source type</label>
+    <label class="toggle-switch" title="Switch filter logic">
+      <span class="label-or">OR</span>
+      <input type="checkbox" id="sourceLogicToggle">
+      <span class="slider"></span>
+      <span class="label-and">AND</span>
+    </label>
+    </div>
+  <div class="hstack" id="srcGroup">
         <button type="button" class="tagbtn" data-src="Studio">Studio</button>
         <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
         <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
@@ -100,10 +108,12 @@
   const $$ = s => Array.from(document.querySelectorAll(s));
 
   const TAKE = 36;
+  const LS_KEY_SRC_LOGIC = "vi_source_logic";
 
   // ---- state ----
   let srcSel = new Set();
   let oriSel = new Set();
+  let sourceLogic = localStorage.getItem(LS_KEY_SRC_LOGIC) || "OR";
   let skip = 0;
   let total = 0;
   let filtersHidden = false;
@@ -115,7 +125,7 @@
   function setParams(updates){
     const u = new URL(location.href);
     const sp = u.searchParams;
-    ["source","orientation","minPerformers","maxPerformers","sort","skip","q"].forEach(k=>sp.delete(k));
+    ["source","orientation","minPerformers","maxPerformers","sort","skip","q", "sourceLogic"].forEach(k=>sp.delete(k));
     for (const [k,v] of Object.entries(updates)){
       if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length===0)) continue;
       if (Array.isArray(v)) sp.set(k, v.join(","));
@@ -301,6 +311,7 @@
     const params = new URLSearchParams();
     params.set("skip", String(skip));
     params.set("take", String(TAKE));
+    params.set("sourceLogic", sourceLogic);
 
     const q = ($("#searchBox").value ?? "").trim();
     if (q) params.set("q", q);
@@ -386,9 +397,20 @@
 
   // ---------- page init ----------
   document.addEventListener("DOMContentLoaded", () => {
+    const sourceLogicToggle = $("#sourceLogicToggle");
     readFromUrl();
     renderScopeBar();
     reload(false);
+
+    if (sourceLogic === "AND") {
+      sourceLogicToggle.checked = true;
+    }
+
+    sourceLogicToggle.addEventListener("change", () => {
+      sourceLogic = sourceLogicToggle.checked ? "AND" : "OR";
+      localStorage.setItem(LS_KEY_SRC_LOGIC, sourceLogic);
+      reload();
+    });
 
     $("#oriGroup").addEventListener("click", (e)=>{
       const btn = e.target.closest('.tagbtn'); if (!btn) return;

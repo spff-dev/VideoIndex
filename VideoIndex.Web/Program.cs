@@ -887,6 +887,7 @@ app.MapGet("/api/media/browse", async (
     sort = sort.ToLowerInvariant();
 
     List<string> srcFilter = SplitCsv(req.Query["source"].ToString());
+    string sourceLogic = req.Query["sourceLogic"].ToString()?.ToUpperInvariant() ?? "OR";
     List<string> oriFilter = SplitCsv(req.Query["orientation"].ToString());
     string? q = req.Query["q"]; // free-text search
 
@@ -962,7 +963,14 @@ app.MapGet("/api/media/browse", async (
     if (srcFilter.Count > 0)
     {
         var set = new HashSet<string>(srcFilter, StringComparer.OrdinalIgnoreCase);
-        pre = pre.Where(m => (m.SourceTypes ?? new List<string>()).Any(t => set.Contains(t))).ToList();
+        if (sourceLogic == "AND")
+        {
+            pre = pre.Where(m => set.All(filterTag => (m.SourceTypes ?? new List<string>()).Contains(filterTag, StringComparer.OrdinalIgnoreCase))).ToList();
+        }
+        else // Default to OR
+        {
+            pre = pre.Where(m => (m.SourceTypes ?? new List<string>()).Any(t => set.Contains(t))).ToList();
+        }
     }
 
     if (oriFilter.Count > 0)

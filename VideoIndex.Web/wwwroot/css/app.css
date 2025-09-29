@@ -34,7 +34,7 @@ select,
 textarea {
   padding: 6px 8px;
   border: 1px solid #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
 }
 
@@ -121,7 +121,7 @@ main.page {
 .chip {
   display: inline-block;
   padding: 0.25em 0.6em;
-  border-radius: 99px;
+  border-radius: 8px;
   border: 1px solid #ddd;
   font-size: 0.9rem;
   line-height: 1.4;
@@ -189,13 +189,21 @@ a.chip:hover {
 .tagbtn {
   padding: 6px 10px;
   border: 1px solid #ccc;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #f4f4f4;
   cursor: pointer;
 }
-.tagbtn.on {
-  background: #1f7a3f;
-  border-color: #1f7a3f;
+/* Orange for selected Orientation buttons */
+#oriGroup .tagbtn.on {
+  background: #b35c00; /* Same as .chip.ori */
+  border-color: #ffd2a6;
+  color: #fff;
+}
+
+/* Blue for selected Source Type buttons */
+#srcGroup .tagbtn.on {
+  background: #1d5fbf; /* Same as .chip.src */
+  border-color: #c8ddff;
   color: #fff;
 }
 
@@ -219,7 +227,7 @@ a.chip:hover {
 }
 .library-card {
   border: 1px solid #e2e2e2;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -230,7 +238,7 @@ a.chip:hover {
   aspect-ratio: 1/1;
   object-fit: contain;
   background: #1b1b1b;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .library-card .filename {
   word-break: break-word;
@@ -276,6 +284,63 @@ a.chip:hover {
   }
 }
 
+/* Highlight style for active performer buttons (Solo, Duo, etc.) */
+.tagbtn.quick-perf.on {
+  background: #74c69d; /* Pastel green */
+  border-color: #74c69d;
+  color: #0f3d22; /* Dark green text for contrast */
+}
+
+/* === AND/OR Toggle Switch === */
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.8rem;
+  color: #555;
+}
+.toggle-switch .slider {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 20px;
+  background-color: #008bfd;
+  border-radius: 99px;
+  transition: background-color 0.2s;
+}
+.toggle-switch .slider::before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle-switch input {
+  display: none;
+}
+.toggle-switch input:checked + .slider {
+  background-color: #189b53; /* Green for AND */
+}
+.toggle-switch input:checked + .slider::before {
+  transform: translateX(14px);
+}
+.toggle-switch .label-and,
+.toggle-switch .label-or {
+  font-weight: 600;
+}
+.toggle-switch input:not(:checked) ~ .label-or {
+  color: #111;
+}
+.toggle-switch input:checked ~ .label-and {
+  color: #111;
+}
+
 /* === PAGE: MEDIA DETAILS (/media/{id}) === */
 .media-details-grid {
   display: grid;
@@ -286,6 +351,8 @@ a.chip:hover {
 .player-box {
   position: relative;
   width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 8px;
 }
 .player-thumb,
 .player-video {
@@ -300,7 +367,7 @@ a.chip:hover {
   top: 8px;
   right: 8px;
   border: none;
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 8px 10px;
   background: #222a;
   color: #fff;
@@ -439,7 +506,7 @@ details.kv .kv-body {
   background: #111;
   color: #ddd;
   padding: 0.75rem;
-  border-radius: 0.5rem;
+  border-radius: 8px;
   max-height: 40vh;
   overflow: auto;
   white-space: pre-wrap;
