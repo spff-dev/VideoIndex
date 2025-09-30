@@ -763,10 +763,11 @@ app.MapPut("/api/media/{id:int}", async (IDbContextFactory<VideoIndexDbContext> 
     return Results.Ok(new { updated = true });
 });
 
-// ---------- Live scan (unchanged) ----------
 app.MapPost("/api/roots/{id:int}/scan-live", async (
     int id,
     string scanId,
+    bool? newFilesOnly,
+    bool? autoTag,
     bool? thumbs,
     bool? regenAll,
     int? dop,
@@ -779,97 +780,111 @@ app.MapPost("/api/roots/{id:int}/scan-live", async (
     if (!Directory.Exists(root.Path)) return Results.BadRequest($"Path does not exist: {root.Path}");
     if (string.IsNullOrWhiteSpace(scanId)) return Results.BadRequest("scanId is required.");
 
-    bool genThumbs = thumbs.GetValueOrDefault(true);
-    bool doRegenAll = regenAll.GetValueOrDefault(false);
-    int degree = Math.Clamp(dop ?? Math.Max(1, Environment.ProcessorCount - 4), 1, 24);
-
-    var allowedExt = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    { "mp4","mkv","mov","avi","wmv","webm","flv","mpg","mpeg","ogv","ts","3gp" };
-
-    var files = new List<string>(capacity: 8192);
-    foreach (var file in Directory.EnumerateFiles(root.Path, "*.*", SearchOption.AllDirectories))
+    var cts = new CancellationTokenSource();
+    if (!ScanManager.ActiveScans.TryAdd(scanId, cts))
     {
-        var ext = Path.GetExtension(file);
-        if (string.IsNullOrEmpty(ext)) continue;
-        var extNoDot = ext[0] == '.' ? ext[1..] : ext;
-        if (!allowedExt.Contains(extNoDot)) continue;
-        files.Add(Path.GetFullPath(file));
+        return Results.Conflict("A scan with this ID is already in progress.");
     }
 
-    var startedAt = DateTimeOffset.UtcNow;
-    int total = files.Count;
-    int done = 0, indexed = 0, thumbsMade = 0, errors = 0;
-
-    await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new
+    try
     {
-        kind = "started",
-        root = new { root.Id, root.Name, root.Path },
-        totals = new { files = total, thumbsRequested = genThumbs, thumbsCap = (int?)null, regenAll = doRegenAll, dop = degree },
-        startedAt
-    });
+        bool doNewFilesOnly = newFilesOnly.GetValueOrDefault(true);
+        bool doAutoTag = autoTag.GetValueOrDefault(true);
+        int degree = Math.Clamp(dop ?? Environment.ProcessorCount, 1, 24);
 
-    var sw = Stopwatch.StartNew();
+        var allowedExt = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "mp4","mkv","mov","avi","wmv","webm","flv","mpg","mpeg","ogv","ts","3gp" };
 
-    await Parallel.ForEachAsync(files, new ParallelOptions { MaxDegreeOfParallelism = degree }, async (f, ct) =>
-    {
-        var rel = Path.GetRelativePath(root.Path, f);
+        var allDiskFiles = Directory.EnumerateFiles(root.Path, "*.*", SearchOption.AllDirectories)
+            .Where(f => allowedExt.Contains(Path.GetExtension(f).TrimStart('.')))
+            .Select(Path.GetFullPath)
+            .ToList();
 
-        var res = await Indexer.IndexOneWithFactoryAsync(dbFactory, f);
-        if (!res.ok)
+        List<string> filesToProcess;
+        if (doNewFilesOnly)
         {
-            Interlocked.Increment(ref errors);
-            await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "indexError", file = rel, error = res.err });
+            var existingPaths = (await db0.MediaFiles.AsNoTracking()
+                .Where(m => m.RootId == id)
+                .Select(m => m.Path)
+                .ToListAsync())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            filesToProcess = allDiskFiles.Where(f => !existingPaths.Contains(f)).ToList();
         }
         else
         {
-            Interlocked.Increment(ref indexed);
+            filesToProcess = allDiskFiles;
+        }
 
-            if (genThumbs)
+        var startedAt = DateTimeOffset.UtcNow;
+        int total = filesToProcess.Count;
+        int done = 0, indexed = 0, tagged = 0, errors = 0;
+
+        await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new
+        {
+            kind = "started",
+            root = new { root.Id, root.Name, root.Path },
+            totals = new { files = total, dop = degree },
+            startedAt
+        });
+
+        var sw = Stopwatch.StartNew();
+
+        await Parallel.ForEachAsync(filesToProcess, new ParallelOptions { MaxDegreeOfParallelism = degree, CancellationToken = cts.Token }, async (f, ct) =>
+        {
+            var rel = Path.GetRelativePath(root.Path, f);
+            var (ok, result, err) = await Indexer.IndexOneWithFactoryAsync(dbFactory, f);
+
+            if (ok)
             {
-                var tres = await Indexer.GenerateThumbnailWithFactoryAsync(dbFactory, f, lumaThreshold: 28, maxTries: 5, width: 320, jpegQuality: 85, onlyIfMissing: !doRegenAll);
-                if (tres.ok)
+                Interlocked.Increment(ref indexed);
+                if (doAutoTag)
                 {
-                    Interlocked.Increment(ref thumbsMade);
-                    await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "thumbMade", file = rel });
-                }
-                else if (tres.err != "skip")
-                {
-                    await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "thumbError", file = rel, error = tres.err });
+                    await using var dbTag = await dbFactory.CreateDbContextAsync();
+                    var mediaFile = await dbTag.MediaFiles.FindAsync(((dynamic)result).Id);
+                    if (mediaFile != null && AutoTagger.Apply(mediaFile, dryRun: false))
+                    {
+                        await dbTag.SaveChangesAsync(ct);
+                        Interlocked.Increment(ref tagged);
+                    }
                 }
             }
-        }
+            else
+            {
+                Interlocked.Increment(ref errors);
+                await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "indexError", file = rel, error = err });
+            }
 
-        var curDone = Interlocked.Increment(ref done);
-        if (curDone % 10 == 0)
-        {
-            await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "heartbeat", processed = curDone, indexed, thumbsMade, errors, elapsedMs = sw.ElapsedMilliseconds });
-        }
-    });
+            var curDone = Interlocked.Increment(ref done);
+            if (curDone % 10 == 0)
+            {
+                await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "heartbeat", processed = curDone, indexed, tagged, errors, elapsedMs = sw.ElapsedMilliseconds });
+            }
+        });
 
-    await using (var db1 = await dbFactory.CreateDbContextAsync())
+        sw.Stop();
+        await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "completed", processed = done, indexed, tagged, errors, elapsedMs = sw.ElapsedMilliseconds });
+    }
+    catch (OperationCanceledException)
     {
-        var r = await db1.ScanRoots.FindAsync(id);
-        if (r != null)
-        {
-            r.LastScannedAt = DateTimeOffset.UtcNow;
-            await db1.SaveChangesAsync();
-        }
+        await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "cancelled" });
+    }
+    finally
+    {
+        ScanManager.ActiveScans.TryRemove(scanId, out _);
     }
 
-    sw.Stop();
+    return Results.Ok();
+});
 
-    await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "completed", processed = done, indexed, thumbsMade, errors, elapsedMs = sw.ElapsedMilliseconds });
-
-    return Results.Ok(new
+app.MapPost("/api/scan/{scanId}/stop", (string scanId) =>
+{
+    if (ScanManager.ActiveScans.TryGetValue(scanId, out var cts))
     {
-        root = new { root.Id, root.Name, root.Path },
-        scanned = total,
-        processed = done,
-        indexed,
-        thumbs = new { requested = genThumbs, made = thumbsMade, regenAll = doRegenAll },
-        errors,
-        elapsedMs = sw.ElapsedMilliseconds
-    });
+        cts.Cancel();
+        return Results.Ok(new { message = "Scan cancellation requested." });
+    }
+    return Results.NotFound(new { message = "Scan ID not found or already completed." });
 });
 
 // ----- Media browse (filters + sorting + paging + search) -----
@@ -1141,6 +1156,11 @@ app.MapRazorPages();
 app.Run();
 
 // ---------- DTOs & helpers ----------
+
+public static class ScanManager
+{
+    public static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CancellationTokenSource> ActiveScans = new();
+}
 public record RootDto(string Name, string Path);
 
 // New DTO (accepts new + legacy fields)

@@ -18,8 +18,20 @@
           <option value="@r.Id">@r.Name (@r.Path)</option>
         }
       </select>
-      <button id="startBtn">Start scan</button>
+      <button id="startBtn" class="btn primary">Start Scan</button>
+      <button id="stopBtn" class="btn" style="display: none;">Stop Scan</button>
       <span id="status" class="muted">idle</span>
+    </div>
+
+    <div class="row">
+        <label class="hstack" style="font-weight:normal;">
+            <input id="newFilesOnly" type="checkbox" checked />
+            <span>Scan new files only</span>
+        </label>
+        <label class="hstack" style="font-weight:normal;">
+            <input id="autoTag" type="checkbox" checked />
+            <span>Auto-tag new files</span>
+        </label>
     </div>
 
     <div class="row" style="width:100%;">
@@ -27,84 +39,24 @@
       <span id="counts" class="muted"></span>
     </div>
 
-    <div class="row">
-        </div>
-
     <pre id="log"></pre>
 </div>
 
-
 <script src="https://unpkg.com/%40microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
 <script>
-  document.querySelector("#autoTagAllBtn")?.addEventListener("click", async () => {
-    const dry = document.querySelector("#autoTagDryRun").checked;
-    const batch = Math.max(50, Math.min(2000, parseInt(document.querySelector("#autoTagBatch").value || "500", 10)));
-    const url = `/api/autotag/all?dryRun=${dry}&batchSize=${batch}`;
-    const res = await fetch(url, { method: "POST" });
-    const data = await res.json().catch(()=> ({}));
-    const msg = res.ok
-      ? `Auto-tag ${dry ? "(dry run)" : ""} complete.\nTotal: ${data.total ?? "?"}\nChanged: ${data.changed ?? "?"}\nUnchanged: ${data.unchanged ?? "?"}`
-      : `Auto-tag failed: ${res.status}\n${JSON.stringify(data)}`;
-    alert(msg);
-  });
-</script>
-
-<pre id="log"></pre>
-
-<script src="https://unpkg.com/%40microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
-<script>
-  const base = location.origin;
   const $ = sel => document.querySelector(sel);
   const logEl = $("#log");
   const statusEl = $("#status");
   const countsEl = $("#counts");
   const progEl = $("#prog");
   const startBtn = $("#startBtn");
+  const stopBtn = $("#stopBtn");
+  const newFilesOnlyCheck = $("#newFilesOnly");
+  const autoTagCheck = $("#autoTag");
 
-  const urlRoot = new URL(location.href).searchParams.get("root");
-document.addEventListener("DOMContentLoaded", ()=>{
-  if (urlRoot) {
-    const sel = document.querySelector("#rootSelect");
-    if (sel && [...sel.options].some(o => o.value === urlRoot)) sel.value = urlRoot;
-  }
-});
+  let currentScanId = null;
 
-const autoAllBtn  = $("#autoAllBtn");
-const autoDry     = $("#autoDry");
-const autoBatch   = $("#autoBatch");
-const autoStatus  = $("#autoStatus");
-
-autoAllBtn?.addEventListener("click", async () => {
-  try {
-    autoAllBtn.disabled = true;
-    autoStatus.textContent = "running…";
-    log("Auto-tagging started… (this may take a while on large libraries)", "muted");
-
-    const qs = new URLSearchParams({
-      dryRun: String(autoDry.checked),
-      batchSize: String(parseInt(autoBatch.value || "500", 10))
-    });
-
-    const resp = await fetch(`${base}/api/autotag/all?${qs.toString()}`, { method: "POST" });
-    const data = await resp.json();
-
-    if (!resp.ok) {
-      log(`Auto-tag failed: ${resp.status} ${JSON.stringify(data)}`, "err");
-      autoStatus.textContent = "error";
-      return;
-    }
-
-    log(`Auto-tag summary — total: ${data.total}, changed: ${data.changed}, unchanged: ${data.unchanged}, dryRun: ${data.dryRun}`, "ok");
-    autoStatus.textContent = "done";
-  } catch (e) {
-    log(`Auto-tag error: ${e}`, "err");
-    autoStatus.textContent = "error";
-  } finally {
-    autoAllBtn.disabled = false;
-  }
-});
-
-  function log(msg, cls="") {
+  function log(msg, cls = "") {
     const time = new Date().toLocaleTimeString();
     const line = `[${time}] ${msg}\n`;
     const span = document.createElement("span");
@@ -118,109 +70,90 @@ autoAllBtn?.addEventListener("click", async () => {
 
   startBtn.addEventListener("click", async () => {
     startBtn.disabled = true;
-    logEl.textContent = "";
+    stopBtn.style.display = 'inline-flex';
+    logEl.innerHTML = "";
     setStatus("connecting…");
 
     const rootId = parseInt($("#rootSelect").value, 10);
-    const workers = Math.max(1, Math.min(24, parseInt($("#workers").value, 10) || 8));
-    const thumbs = $("#thumbs").checked;
-    const regenAll = $("#regenAll").checked;
-
-    const scanId = (crypto && crypto.randomUUID) ? crypto.randomUUID() :
-                   Math.random().toString(36).slice(2);
+    const newFilesOnly = newFilesOnlyCheck.checked;
+    const autoTag = autoTagCheck.checked;
+    currentScanId = crypto.randomUUID();
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${base}/hubs/scan`)
+      .withUrl("/hubs/scan")
       .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Information)
       .build();
 
     let totalFiles = 0;
-    let processed = 0;
-    let indexed = 0;
-    let thumbsMade = 0;
-    let errors = 0;
-
-    function updateCounts() {
-      countsEl.textContent = `${processed} / ${totalFiles} processed, indexed: ${indexed}, thumbs: ${thumbsMade}, errors: ${errors}`;
-    }
 
     connection.on("progress", evt => {
-      switch (evt.kind) {
-        case "started":
-          totalFiles = evt.totals.files || 0;
-          processed = 0; thumbsMade = 0; errors = 0; indexed = 0;
-          progEl.max = Math.max(totalFiles, 1);
-          progEl.value = 0;
-          updateCounts();
-          setStatus("running");
-          log(`Scan started on "${evt.root.name}" (${evt.root.path}) — files: ${totalFiles}, thumbs: ${evt.totals.thumbsRequested ? "on" : "off"} (regenAll ${regenAll}), workers: ${workers}`, "muted");
-          break;
-
-        case "indexError":
-          errors++;
-          log(`Index error: ${evt.file} — ${evt.error}`, "err");
-          break;
-
-        case "thumbMade":
-          thumbsMade++;
-          log(`Thumb ✓ ${evt.file}`, "ok");
-          break;
-
-        case "thumbError":
-          log(`Thumb error: ${evt.file} — ${evt.error}`, "warn");
-          break;
-
-        case "heartbeat":
-          processed = evt.processed ?? processed;
-          thumbsMade = evt.thumbsMade ?? thumbsMade;
-          errors = evt.errors ?? errors;
-          indexed = evt.indexed ?? indexed;
-          progEl.value = processed;
-          updateCounts();
-          break;
-
-        case "completed":
-          processed = evt.processed ?? processed;
-          thumbsMade = evt.thumbsMade ?? thumbsMade;
-          errors = evt.errors ?? errors;
-          indexed = evt.indexed ?? indexed;
-          progEl.value = processed;
-          updateCounts();
-          setStatus("done");
-          log(`Completed in ${evt.elapsedMs} ms — processed: ${processed}, indexed: ${indexed}, thumbs: ${thumbsMade}, errors: ${errors}`, "ok");
-          startBtn.disabled = false;
-          break;
-      }
+        let { processed = 0, indexed = 0, tagged = 0, errors = 0 } = evt;
+        countsEl.textContent = `${processed} / ${totalFiles} | Indexed: ${indexed} | Tagged: ${tagged} | Errors: ${errors}`;
+        progEl.value = processed;
+      
+        switch (evt.kind) {
+            case "started":
+                totalFiles = evt.totals.files || 0;
+                progEl.max = Math.max(totalFiles, 1);
+                setStatus("running");
+                log(`Scan started on "${evt.root.name}" — found ${totalFiles} files to process.`, "muted");
+                break;
+            case "indexError":
+                log(`Index error: ${evt.file} — ${evt.error}`, "err");
+                break;
+            case "cancelled":
+                setStatus("stopped");
+                log(`Scan was stopped by user.`, "warn");
+                startBtn.disabled = false;
+                stopBtn.style.display = 'none';
+                connection.stop();
+                break;
+            case "completed":
+                setStatus("done");
+                log(`Completed in ${evt.elapsedMs} ms.`, "ok");
+                startBtn.disabled = false;
+                stopBtn.style.display = 'none';
+                connection.stop();
+                break;
+        }
     });
 
-    connection.onreconnecting(() => setStatus("reconnecting…"));
-    connection.onreconnected(() => setStatus("running"));
-    connection.onclose(() => { if (statusEl.textContent !== "done") setStatus("disconnected"); });
-
     try {
-      await connection.start();
-      await connection.invoke("JoinScan", scanId);
-      log(`Joined scan channel ${scanId}`, "muted");
+        await connection.start();
+        await connection.invoke("JoinScan", currentScanId);
+        log(`Joined scan channel ${currentScanId}`, "muted");
 
-      // kick off the server-side scan
-      const url = `${base}/api/roots/${rootId}/scan-live?scanId=${encodeURIComponent(scanId)}&thumbs=${thumbs}&regenAll=${regenAll}&dop=${workers}`;
-      const resp = await fetch(url, { method: "POST" });
-      if (!resp.ok) {
-        const text = await resp.text();
-        log(`Scan start failed: ${resp.status} ${text}`, "err");
+        const params = new URLSearchParams({
+            scanId: currentScanId,
+            newFilesOnly: newFilesOnly,
+            autoTag: autoTag,
+            thumbs: true, // Assuming you always want thumbs for new files
+            dop: 8
+        });
+        const url = `/api/roots/${rootId}/scan-live?${params.toString()}`;
+        const resp = await fetch(url, { method: "POST" });
+        if (!resp.ok) {
+            const text = await resp.text();
+            log(`Scan start failed: ${resp.status} ${text}`, "err");
+            setStatus("error");
+            startBtn.disabled = false;
+            stopBtn.style.display = 'none';
+        }
+    } catch (e) {
+        log(`SignalR error: ${e}`, "err");
         setStatus("error");
         startBtn.disabled = false;
-      } else {
-        const summary = await resp.json();
-        log(`Scan request accepted — total files enumerated: ${summary.scanned}`, "muted");
-      }
-    } catch (e) {
-      log(`SignalR error: ${e}`, "err");
-      setStatus("error");
-      startBtn.disabled = false;
+        stopBtn.style.display = 'none';
     }
   });
+
+  stopBtn.addEventListener("click", async () => {
+    if (!currentScanId) return;
+    setStatus("stopping…");
+    stopBtn.disabled = true;
+    await fetch(`/api/scan/${currentScanId}/stop`, { method: "POST" });
+  });
+
 </script>
 
 @await Html.PartialAsync("_TopNavEnd")
