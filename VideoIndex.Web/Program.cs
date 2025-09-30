@@ -763,6 +763,54 @@ app.MapPut("/api/media/{id:int}", async (IDbContextFactory<VideoIndexDbContext> 
     return Results.Ok(new { updated = true });
 });
 
+app.MapPost("/api/autotag/cleanup", async (IDbContextFactory<VideoIndexDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    int cleanedCount = 0;
+
+    // This query cannot be translated by EF Core, so we must fetch the data first.
+    var candidates = await db.MediaFiles
+        .Where(m => m.OtherTags != null && m.OtherTags.Contains("x-auto-tagged"))
+        .ToListAsync();
+
+    foreach (var m in candidates)
+    {
+        // Check if the file has any other meaningful tags.
+        bool hasOtherMeaningfulTags =
+            (m.SourceTypes?.Count > 0) ||
+            (m.OrientationTags?.Count > 0) ||
+            (m.PerformerNames?.Count > 0) ||
+            !string.IsNullOrWhiteSpace(m.StudioName) ||
+            !string.IsNullOrWhiteSpace(m.SourceUsername) ||
+            m.Year.HasValue ||
+            m.PerformerCount.HasValue ||
+            (m.OtherTags?.Count > 1); // True if there's more than just "x-auto-tagged"
+
+        if (!hasOtherMeaningfulTags)
+        {
+            // If it has no other tags, remove the 'x-auto-tagged' tag.
+            m.OtherTags.Remove("x-auto-tagged");
+            if (m.OtherTags.Count == 0)
+            {
+                m.OtherTags = null; // Set to null if the list is now empty.
+            }
+            m.UpdatedAt = DateTimeOffset.UtcNow;
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0)
+    {
+        await db.SaveChangesAsync();
+    }
+
+    return Results.Ok(new
+    {
+        filesScanned = candidates.Count,
+        filesCleaned = cleanedCount
+    });
+});
+
 app.MapPost("/api/roots/{id:int}/scan-live", async (
     int id,
     string scanId,
@@ -875,6 +923,62 @@ app.MapPost("/api/roots/{id:int}/scan-live", async (
     }
 
     return Results.Ok();
+});
+
+app.MapPost("/api/media/generate-missing-thumbnails", (
+    IHubContext<ScanHub> hub,
+    IDbContextFactory<VideoIndexDbContext> dbFactory) =>
+{
+    string scanId = Guid.NewGuid().ToString();
+
+    // The key changes are 'async' and 'await' here
+    _ = Task.Run(async () =>
+    {
+        var cts = new CancellationTokenSource();
+        if (!ScanManager.ActiveScans.TryAdd(scanId, cts)) return;
+
+        try
+        {
+            await using var db = await dbFactory.CreateDbContextAsync();
+            var filesMissingThumbs = await db.MediaFiles
+                .AsNoTracking()
+                .Where(m => !m.Thumbnails.Any())
+                .Select(m => m.Path)
+                .ToListAsync(cts.Token);
+
+            int total = filesMissingThumbs.Count;
+            int done = 0;
+            int thumbsMade = 0;
+
+            await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new
+            {
+                kind = "started",
+                root = new { Name = "Entire Library" },
+                totals = new { files = total }
+            });
+
+            await Parallel.ForEachAsync(filesMissingThumbs, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cts.Token }, async (path, token) =>
+            {
+                var (thumbOk, _, _) = await Indexer.GenerateThumbnailWithFactoryAsync(dbFactory, path, 28, 5, 320, 85, onlyIfMissing: true);
+                if (thumbOk) Interlocked.Increment(ref thumbsMade);
+
+                Interlocked.Increment(ref done);
+                await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "heartbeat", processed = done, thumbsMade });
+            });
+
+            await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "completed", processed = done, thumbsMade, elapsedMs = 0 });
+        }
+        catch (OperationCanceledException)
+        {
+            await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "cancelled" });
+        }
+        finally
+        {
+            ScanManager.ActiveScans.TryRemove(scanId, out _);
+        }
+    });
+
+    return Results.Ok(new { scanId });
 });
 
 app.MapPost("/api/scan/{scanId}/stop", (string scanId) =>
