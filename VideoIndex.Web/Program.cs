@@ -1313,72 +1313,67 @@ static class AutoTagger
     // - Case-insensitive, tolerant to slashes and spaces in segment names.
     public static bool Apply(MediaFile m, bool dryRun)
     {
-        var fp = SafeFullPath(m.Path);
-        var filename = m.Filename ?? "";
+        var initialSnapshot = Snapshot(m); // Snapshot before any changes
 
-        // normalize segments
-        var segs = SplitSegments(fp);
-        static string normSeg(string s) => s.Replace(" ", ""); // keep it simple & widely supported
-
-        // ensure collections
         var src = new HashSet<string>(m.SourceTypes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
         var other = new HashSet<string>(m.OtherTags ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
 
-        bool changed = false;
+        // --- Temporarily remove x-auto-tagged to check for other tags later ---
+        other.Remove("x-auto-tagged");
 
-        // always mark with safety tag
-        if (!other.Contains("x-auto-tagged")) { other.Add("x-auto-tagged"); changed = true; }
+        var fp = SafeFullPath(m.Path);
+        var filename = m.Filename ?? "";
+        var segs = SplitSegments(fp);
+        static string normSeg(string s) => s.Replace(" ", "");
 
-        // detect OnlyFans in name or path
+        // --- Rule application ---
         bool hasOnlyFansText = Regex.IsMatch(fp ?? "", @"only\s*fans", RegexOptions.IgnoreCase)
                             || Regex.IsMatch(filename, @"only\s*fans", RegexOptions.IgnoreCase);
 
         if (hasOnlyFansText)
         {
-            if (!src.Contains("OnlyFans")) { src.Add("OnlyFans"); changed = true; }
-            if (!src.Contains("Amateur")) { src.Add("Amateur"); changed = true; }
-
-            // username = next segment after the "OnlyFans" segment, if we can find it
+            src.Add("OnlyFans");
+            src.Add("Amateur");
             var idx = segs.FindIndex(s => normSeg(s).Equals("onlyfans", StringComparison.OrdinalIgnoreCase));
-            if (idx >= 0 && idx + 1 < segs.Count)
+            if (idx >= 0 && idx + 1 < segs.Count && string.IsNullOrWhiteSpace(m.SourceUsername))
             {
-                var cand = segs[idx + 1];
-                if (string.IsNullOrWhiteSpace(m.SourceUsername))
-                {
-                    m.SourceUsername = cand;
-                    changed = true;
-                }
+                m.SourceUsername = segs[idx + 1];
             }
         }
 
-        // detect Studios
+        var studioIdx = segs.FindIndex(s => s.Equals("Studios", StringComparison.OrdinalIgnoreCase));
+        if (studioIdx >= 0 && studioIdx + 1 < segs.Count)
         {
-            var idx = segs.FindIndex(s => s.Equals("Studios", StringComparison.OrdinalIgnoreCase));
-            if (idx >= 0 && idx + 1 < segs.Count)
+            src.Add("Studio");
+            if (string.IsNullOrWhiteSpace(m.StudioName))
             {
-                if (!src.Contains("Studio")) { src.Add("Studio"); changed = true; }
-
-                var studio = segs[idx + 1];
-                if (string.IsNullOrWhiteSpace(m.StudioName))
-                {
-                    m.StudioName = studio;
-                    changed = true;
-                }
+                m.StudioName = segs[studioIdx + 1];
             }
         }
 
-        // write back if any list changed
-        var newSrc = src.Count > 0 ? src.ToList() : null;
-        var newOther = other.Count > 0 ? other.ToList() : null;
+        // --- Final logic for x-auto-tagged ---
+        var hasAnyMeaningfulTags = src.Any() ||
+                                   !string.IsNullOrWhiteSpace(m.StudioName) ||
+                                   !string.IsNullOrWhiteSpace(m.SourceUsername) ||
+                                   other.Any();
 
-        // stabilize order (purely aesthetic)
-        if (newSrc != null) newSrc.Sort(StringComparer.OrdinalIgnoreCase);
-        if (newOther != null) newOther.Sort(StringComparer.OrdinalIgnoreCase);
+        if (hasAnyMeaningfulTags)
+        {
+            other.Add("x-auto-tagged");
+        }
+        // If we have no meaningful tags, we ensure 'x-auto-tagged' is NOT present.
 
-        if (!ListsEqual(m.SourceTypes, newSrc)) { m.SourceTypes = newSrc; changed = true; }
-        if (!ListsEqual(m.OtherTags, newOther)) { m.OtherTags = newOther; changed = true; }
+        // --- Write back changes ---
+        var newSrc = src.Count > 0 ? src.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList() : null;
+        var newOther = other.Count > 0 ? other.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList() : null;
+        m.SourceTypes = newSrc;
+        m.OtherTags = newOther;
 
-        if (dryRun) return changed; // caller won't save
+        // --- Compare with initial state to see if anything actually changed ---
+        var finalSnapshot = Snapshot(m);
+        bool changed = !JsonSerializer.Serialize(initialSnapshot).Equals(JsonSerializer.Serialize(finalSnapshot));
+
+        if (dryRun) return changed;
 
         return changed;
     }

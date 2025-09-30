@@ -205,18 +205,20 @@ a.chip:hover {
   background: #f4f4f4;
   cursor: pointer;
 }
-/* Orange for selected Orientation buttons */
 #oriGroup .tagbtn.on {
-  background: #b35c00; /* Same as .chip.ori */
+  background: #b35c00;
   border-color: #ffd2a6;
   color: #fff;
 }
-
-/* Blue for selected Source Type buttons */
 #srcGroup .tagbtn.on {
-  background: #1d5fbf; /* Same as .chip.src */
+  background: #1d5fbf;
   border-color: #c8ddff;
   color: #fff;
+}
+.tagbtn.quick-perf.on {
+  background: #74c69d;
+  border-color: #74c69d;
+  color: #0f3d22;
 }
 
 /* === PAGE: LIBRARY (/library) === */
@@ -224,12 +226,15 @@ a.chip:hover {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 12px;
-  align-items: end;
+  align-items: start;
   margin-bottom: 12px;
+}
+.library-toolbar .sort-control {
+  margin-top: 1rem;
 }
 .library-filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 .library-grid {
@@ -285,10 +290,14 @@ a.chip:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
+
+/* === UPGRADED LIBRARY FILTER PANELS === */
 .filter-panel {
-  padding: 10px;
+  border: 1px solid #ddd;
   border-radius: 8px;
-  border: 1px solid transparent;
+  padding: 1.25rem 0.75rem 0.75rem;
+  margin-top: 0.5em;
+  position: relative;
 }
 .filter-panel.perf {
   background: #e6f3ea;
@@ -302,32 +311,45 @@ a.chip:hover {
   background: #e8f0fe;
   border-color: #c8ddff;
 }
-
-/* Highlight style for active performer buttons (Solo, Duo, etc.) */
-.tagbtn.quick-perf.on {
-  background: #74c69d; /* Pastel green */
-  border-color: #74c69d;
-  color: #0f3d22; /* Dark green text for contrast */
+.filter-panel.actions {
+  background: #f7f7f7;
+  border-color: #e3e3e3;
+}
+.filter-panel legend {
+  font-weight: 600;
+  font-size: 0.9em;
+  padding: 0 0.5em;
+  margin-left: 0.5em;
+  background: #fff;
+  color: #111;
+}
+.filter-panel .legend-toggle {
+  position: absolute;
+  top: -0.8em;
+  right: 0.5em;
+  margin-left: 0;
+}
+fieldset {
+  padding-inline-start: 0;
+  padding-inline-end: 0;
 }
 
 /* === AND/OR Toggle Switch === */
 .toggle-switch {
   display: inline-flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.4em;
   cursor: pointer;
   user-select: none;
-  font-size: 0.8rem;
-  color: #555;
+  font-size: 0.85rem;
 }
 .toggle-switch .slider {
   position: relative;
-  display: inline-block;
   width: 34px;
   height: 20px;
-  background-color: #008bfd;
+  background-color: #ccc;
   border-radius: 99px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 .toggle-switch .slider::before {
   position: absolute;
@@ -338,54 +360,34 @@ a.chip:hover {
   bottom: 3px;
   background-color: white;
   border-radius: 50%;
-  transition: transform 0.2s;
+  transition: all 0.2s ease;
 }
 .toggle-switch input {
   display: none;
 }
 .toggle-switch input:checked + .slider {
-  background-color: #189b53; /* Green for AND */
+  background-color: #2a7d4f;
 }
 .toggle-switch input:checked + .slider::before {
   transform: translateX(14px);
 }
+
 .toggle-switch .label-and,
 .toggle-switch .label-or {
   font-weight: 600;
+  transition: all 0.2s ease;
 }
 .toggle-switch input:not(:checked) ~ .label-or {
   color: #111;
 }
+.toggle-switch input:not(:checked) ~ .label-and {
+  color: #888;
+}
 .toggle-switch input:checked ~ .label-and {
   color: #111;
 }
-
-/* === UPGRADED LIBRARY FILTER PANELS === */
-.filter-panel {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1.25rem 0.75rem 0.75rem; /* Add top padding to make space for the legend */
-  position: relative;
-  margin-top: 0.5em; /* Add top margin for the legend */
-}
-.filter-panel legend {
-  font-weight: 600;
-  font-size: 1em;
-  padding: 0 0.5em;
-  margin-left: 0.5em;
-  background: #eee;
-  color: #000;
-  display: flex;
-  align-items: center;
-  gap: 0.75em;
-  border: 1px solid;
-  border-radius: 8px;
-  border-color: #000;
-}
-/* Remove default fieldset padding which can interfere */
-fieldset {
-  padding-inline-start: 0;
-  padding-inline-end: 0;
+.toggle-switch input:checked ~ .label-or {
+  color: #888;
 }
 
 /* === PAGE: MEDIA DETAILS (/media/{id}) === */

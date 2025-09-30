@@ -24,68 +24,69 @@
       </div>
     </fieldset>
 
-  <fieldset class="filter-panel ori">
-    <legend>Orientation</legend>
-    <div class="hstack" id="oriGroup">
+    <fieldset class="filter-panel ori">
+      <legend>Orientation</legend>
+      <div class="hstack" id="oriGroup">
         <button type="button" class="tagbtn" data-ori="Gay">Gay</button>
         <button type="button" class="tagbtn" data-ori="Straight">Straight</button>
         <button type="button" class="tagbtn" data-ori="Bi">Bi</button>
         <button type="button" class="tagbtn" data-ori="FtM Trans">FtM Trans</button>
         <button type="button" class="tagbtn" data-ori="MtF Trans">MtF Trans</button>
-        </div>
-  </fieldset>
-    
-    <fieldset class="filter-panel src">
-    <legend>
-        <span>Source type</span>
-        <label class="toggle-switch" title="Switch filter logic">
-            <span class="label-or">OR</span>
-            <input type="checkbox" id="sourceLogicToggle">
-            <span class="slider"></span>
-            <span class="label-and">AND</span>
-        </label>
-    </legend>
-    <div class="hstack" id="srcGroup">
-        <button type="button" class="tagbtn" data-src="Studio">Studio</button>
-        <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
-        <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
-        <button type="button" class="tagbtn" data-src="Vintage">Vintage</button>
-        <button type="button" class="tagbtn" data-src="Webcam">Webcam</button>
-        <button type="button" class="tagbtn" data-src="Spycam">Spycam</button>
-        <button type="button" class="tagbtn" data-src="CCTV">CCTV</button>
-        <button type="button" class="tagbtn" data-src="Selfie">Selfie</button>
-        <button type="button" class="tagbtn" data-src="Social Media">Social Media</button>
-        <button type="button" class="tagbtn" data-src="Animated">Animated</button>
-        <button type="button" class="tagbtn" data-src="Unknown">Unknown</button>
       </div>
     </fieldset>
+
+<fieldset class="filter-panel src">
+  <legend>
+    <span>Source type</span>
+  </legend>
+  <legend class="legend-toggle">
+    <label class="toggle-switch" title="Switch filter logic">
+      <span class="label-or">OR</span>
+      <input type="checkbox" id="sourceLogicToggle">
+      <span class="slider"></span>
+      <span class="label-and">AND</span>
+    </label>
+  </legend>
+
+  <div class="hstack" id="srcGroup">
+    <button type="button" class="tagbtn" data-src="Studio">Studio</button>
+    <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
+    <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
+    <button type="button" class="tagbtn" data-src="Vintage">Vintage</button>
+    <button type="button" class="tagbtn" data-src="Webcam">Webcam</button>
+    <button type="button" class="tagbtn" data-src="Spycam">Spycam</button>
+    <button type="button" class="tagbtn" data-src="CCTV">CCTV</button>
+    <button type="button" class="tagbtn" data-src="Selfie">Selfie</button>
+    <button type="button" class="tagbtn" data-src="Social Media">Social Media</button>
+    <button type="button" class="tagbtn" data-src="Animated">Animated</button>
+    <button type="button" class="tagbtn" data-src="Unknown">Unknown</button>
   </div>
+</fieldset>
 
-  <div class="field">
-    <label>Search</label>
-    <div class="hstack">
-      <input id="searchBox" type="text" placeholder="Search filename, path/folders, tags, performers, studio, source user, year…" style="min-width:18rem">
-      <button id="clearSearch" class="btn ghost" type="button" title="Clear">×</button>
-    </div>
+    <fieldset class="filter-panel actions">
+      <legend>Actions</legend>
+      <div class="hstack">
+          <input id="searchBox" type="text" placeholder="Search..." style="flex:1 1 auto;">
+          <button id="clearSearch" class="btn ghost" type="button" title="Clear">×</button>
+      </div>
+      <div class="sort-control">
+          <label>Sort</label>
+          <select id="sortSel" style="margin-top:2px;">
+            <option value="updated_desc">Updated (newest)</option>
+            <option value="updated_asc">Updated (oldest)</option>
+            <option value="size_desc">Size (largest)</option>
+            <option value="size_asc">Size (smallest)</option>
+            <option value="length_desc">Length (longest)</option>
+            <option value="length_asc">Length (shortest)</option>
+            <option value="year_desc">Year (newest)</option>
+            <option value="year_asc">Year (oldest)</option>
+          </select>
+      </div>
+      <div class="hstack" style="margin-top:2em;">
+          <button id="resetAll" class="btn ghost" type="button">Remove all filters</button>
+      </div>
+  </fieldset>
 
-    <label style="margin-top:.75rem;">Sort</label>
-    <select id="sortSel">
-      <option value="updated_desc">Updated (newest)</option>
-      <option value="updated_asc">Updated (oldest)</option>
-      <option value="size_desc">Size (largest)</option>
-      <option value="size_asc">Size (smallest)</option>
-      <option value="length_desc">Length (longest)</option>
-      <option value="length_asc">Length (shortest)</option>
-      <option value="source_asc">Source (A→Z)</option>
-      <option value="source_desc">Source (Z→A)</option>
-      <option value="year_desc">Year (newest)</option>
-      <option value="year_asc">Year (oldest)</option>
-    </select>
-    
-    <div class="hstack" style="margin-top:.5rem;">
-      <button id="toggleFilters" class="btn ghost" type="button">Hide filters</button>
-      <button id="resetAll" class="btn ghost" type="button">Show all</button>
-    </div>
   </div>
 </div>
 
@@ -366,18 +367,6 @@
     fetchPage(false);
   }
 
-  function toggleFilters(){
-    const wrap = $("#filtersWrap");
-    filtersHidden = !filtersHidden;
-    if (filtersHidden) {
-      wrap.setAttribute("hidden", "hidden");
-      $("#toggleFilters").textContent = "Show filters";
-    } else {
-      wrap.removeAttribute("hidden");
-      $("#toggleFilters").textContent = "Hide filters";
-    }
-  }
-
   function resetAll(){
     srcSel.clear();
     oriSel.clear();
@@ -501,7 +490,6 @@
       fetchPage(true);
     });
 
-    $("#toggleFilters").addEventListener("click", toggleFilters);
     $("#resetAll").addEventListener("click", resetAll);
   });
 </script>
