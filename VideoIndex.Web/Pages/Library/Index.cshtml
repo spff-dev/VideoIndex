@@ -98,8 +98,9 @@
 
         </div>
     </details>
-    <div id="activeFiltersSummary" class="hstack"></div>
 </div>
+
+<div id="activeFiltersSummary" class="hstack" style="margin: -0.5rem 0 1.5rem; padding: 0 1rem;"></div>
 
 <div id="scopeBar" class="hstack" style="margin:4px 0 10px 0;"></div>
 
@@ -154,9 +155,18 @@
     }
 
     function quickPerfMatches(btn) {
-        const min = btn.dataset.min ?? "";
-        const max = btn.dataset.max ?? "";
-        return min === ($("#minPerf").value ?? "").trim() && max === ($("#maxPerf").value ?? "").trim();
+        const minInput = ($("#minPerf").value ?? "").trim();
+        const maxInput = ($("#maxPerf").value ?? "").trim();
+        const btnMin = btn.dataset.min ?? "";
+        const btnMax = btn.dataset.max ?? "";
+
+        // The "All" button is active if both inputs are empty
+        if (btnMin === "1" && btnMax === "99") {
+            return minInput === "" && maxInput === "";
+        }
+
+        // For other buttons, the values must match exactly
+        return btnMin === minInput && btnMax === maxInput;
     }
 
     function updateQuickPerfButtons() {
@@ -237,18 +247,46 @@
         };
         const q = ($("#searchBox").value ?? "").trim();
         if (q) createChip(`Search: "${q}"`, 'actions', () => { $("#searchBox").value = ''; reload(); });
-        const minP = $("#minPerf").value.trim(); const maxP = $("#maxPerf").value.trim();
+        
+        const minP = $("#minPerf").value.trim();
+        const maxP = $("#maxPerf").value.trim();
+
         if (minP || maxP) {
-            let text = 'Performers: ';
-            if (minP && maxP) { text = (minP === maxP) ? ((minP === "1") ? "Solo" : (minP === "2") ? "Duo" : `${minP} performers`) : `${minP} to ${maxP}`; }
-            else if (minP) { text = (minP === "3") ? "Group (3+)" : `${minP}+`; }
-            else if (maxP) { text += `up to ${maxP}`; }
-            createChip(text, 'perf', () => { $("#minPerf").value = ''; $("#maxPerf").value = ''; reload(); });
+            let text = ""; // The text for the chip
+
+            // Case 1: Both min and max are specified
+            if (minP && maxP) {
+                if (minP === "1" && maxP === "1")   text = "Solo";
+                else if (minP === "2" && maxP === "2")   text = "Duo";
+                else if (minP === "3" && maxP === "99")  text = "Group";
+                else if (minP === maxP)                  text = `${minP} performers`;
+                else                                     text = `${minP} to ${maxP} performers`;
+            }
+            // Case 2: Only min is specified
+            else if (minP) {
+                if (minP === "1")                        text = "At least 1 performer";
+                else                                     text = `${minP}+ performers`;
+            }
+            // Case 3: Only max is specified
+            else if (maxP) {
+                if (maxP === "1")                        text = "Solo";
+                else                                     text = `Up to ${maxP} performers`;
+            }
+
+            createChip(`Performers: ${text}`, 'perf', () => { 
+                $("#minPerf").value = ''; 
+                $("#maxPerf").value = ''; 
+                reload(); 
+            });
+        } else {
+            // If no min/max is set, "All" is the active filter
+            createChip('Performers: All', 'perf', () => { /* No action needed to remove */ });
         }
+        
         [...oriSel].forEach(val => createChip(val, 'ori', () => { oriSel.delete(val); reload(); }));
         [...srcSel].forEach(val => createChip(val, 'src', () => { srcSel.delete(val); reload(); }));
         
-        container.style.display = container.children.length > 0 && !document.querySelector('.library-toolbar').open ? 'flex' : 'none';
+        container.style.display = container.children.length > 0 ? 'flex' : 'none';
     }
 
     function getActiveFilterParams() {
@@ -329,19 +367,37 @@
             reload();
         });
 
-        $("#filtersWrap").addEventListener("click", e => {
-            const btn = e.target.closest('.tagbtn, .quick-perf');
-            if (!btn) return;
-            if (btn.matches('.quick-perf')) {
-                if (quickPerfMatches(btn)) { $("#minPerf").value = ""; $("#maxPerf").value = ""; }
-                else { $("#minPerf").value = btn.dataset.min ?? ""; $("#maxPerf").value = btn.dataset.max ?? ""; }
-            } else if (btn.dataset.ori) {
-                const v = btn.dataset.ori; if (oriSel.has(v)) oriSel.delete(v); else oriSel.add(v);
-            } else if (btn.dataset.src) {
-                const v = btn.dataset.src; if (srcSel.has(v)) srcSel.delete(v); else srcSel.add(v);
-            }
-            reload();
-        });
+          $("#filtersWrap").addEventListener("click", e => {
+              const btn = e.target.closest('.tagbtn, .quick-perf');
+              if (!btn) return;
+
+              if (btn.matches('.quick-perf')) {
+                  // Check if the "All" button was clicked
+                  if (btn.dataset.min === "1" && btn.dataset.max === "99") {
+                      // The "All" button should always clear the filter
+                      $("#minPerf").value = "";
+                      $("#maxPerf").value = "";
+                  } else {
+                      // For other buttons (Solo, Duo, Group), use the existing toggle behavior
+                      if (quickPerfMatches(btn)) {
+                          $("#minPerf").value = "";
+                          $("#maxPerf").value = "";
+                      } else {
+                          $("#minPerf").value = btn.dataset.min ?? "";
+                          $("#maxPerf").value = btn.dataset.max ?? "";
+                      }
+                  }
+              } else if (btn.dataset.ori) {
+                  const v = btn.dataset.ori;
+                  if (oriSel.has(v)) oriSel.delete(v);
+                  else oriSel.add(v);
+              } else if (btn.dataset.src) {
+                  const v = btn.dataset.src;
+                  if (srcSel.has(v)) srcSel.delete(v);
+                  else srcSel.add(v);
+              }
+              reload();
+          });
 
         $("#grid").addEventListener("click", e => {
             const chip = e.target.closest(".chip.clickable"); if (!chip) return;
@@ -352,7 +408,7 @@
             reload();
         });
         
-        $("#minPerf, #maxPerf, #sortSel").forEach(el => el.addEventListener("change", () => reload()));
+        $$("#minPerf, #maxPerf, #sortSel").forEach(el => el.addEventListener("change", () => reload()));
         $("#searchBox").addEventListener("input", debounce(() => reload(), 300));
         
         $("#loadMore").addEventListener("click", () => {
