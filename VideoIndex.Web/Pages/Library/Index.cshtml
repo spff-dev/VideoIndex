@@ -9,94 +9,97 @@
 
 <h1>Library</h1>
 
-<details class="library-toolbar" open>
-    <summary>
-        <span class="summary-text">Hide Filters</span>
-    </summary>
-    <div id="filtersWrap" class="library-filters">
+<div class="library-toolbar-container">
+    <details class="library-toolbar" open>
+        <summary>
+            <span class="summary-text">Hide Filters</span>
+        </summary>
+        <div id="filtersWrap" class="library-filters">
 
-        <fieldset class="filter-panel perf">
-            <legend>Number of Performers</legend>
-            <div>
-                <div class="hstack">
-                    <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
-                    <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
+            <fieldset class="filter-panel perf">
+                <legend>Number of Performers</legend>
+                <div>
+                    <div class="hstack">
+                        <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
+                        <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
+                    </div>
+                    <div class="hstack" style="margin-top: 0.5rem;">
+                        <button type="button" class="tagbtn quick-perf" data-min="1" data-max="99">All</button>
+                        <button type="button" class="tagbtn quick-perf" data-min="1" data-max="1">Solo</button>
+                        <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
+                        <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
+                    </div>
                 </div>
-                <div class="hstack" style="margin-top: 0.5rem;">
-                    <button type="button" class="tagbtn quick-perf" data-min="1" data-max="99">All</button>
-                    <button type="button" class="tagbtn quick-perf" data-min="1" data-max="1">Solo</button>
-                    <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
-                    <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
-                </div>
-            </div>
-        </fieldset>
+            </fieldset>
 
-        <fieldset class="filter-panel ori">
-            <legend>Orientation</legend>
-            <div>
-                <div class="hstack" id="oriGroup">
-                    <button type="button" class="tagbtn" data-ori="Gay">Gay</button>
-                    <button type="button" class="tagbtn" data-ori="Straight">Straight</button>
-                    <button type="button" class="tagbtn" data-ori="Bi">Bi</button>
-                    <button type="button" class="tagbtn" data-ori="FtM Trans">FtM Trans</button>
-                    <button type="button" class="tagbtn" data-ori="MtF Trans">MtF Trans</button>
+            <fieldset class="filter-panel ori">
+                <legend>Orientation</legend>
+                <div>
+                    <div class="hstack" id="oriGroup">
+                        <button type="button" class="tagbtn" data-ori="Gay">Gay</button>
+                        <button type="button" class="tagbtn" data-ori="Straight">Straight</button>
+                        <button type="button" class="tagbtn" data-ori="Bi">Bi</button>
+                        <button type="button" class="tagbtn" data-ori="FtM Trans">FtM Trans</button>
+                        <button type="button" class="tagbtn" data-ori="MtF Trans">MtF Trans</button>
+                    </div>
                 </div>
-            </div>
-        </fieldset>
+            </fieldset>
 
-        <fieldset class="filter-panel src">
-            <legend>
-                <span>Source Type</span>
-                <div class="logic-toggle" id="sourceLogicToggle">
-                    <button type="button" data-logic="OR" class="active">OR</button>
-                    <button type="button" data-logic="AND">AND</button>
+            <fieldset class="filter-panel src">
+                <legend>
+                    <span>Source Type</span>
+                    <div class="logic-toggle" id="sourceLogicToggle">
+                        <button type="button" data-logic="OR" class="active">OR</button>
+                        <button type="button" data-logic="AND">AND</button>
+                    </div>
+                </legend>
+                <div>
+                    <div class="hstack" id="srcGroup">
+                        <button type="button" class="tagbtn" data-src="Studio">Studio</button>
+                        <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
+                        <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
+                        <button type="button" class="tagbtn" data-src="Vintage">Vintage</button>
+                        <button type="button" class="tagbtn" data-src="Webcam">Webcam</button>
+                        <button type="button" class="tagbtn" data-src="Spycam">Spycam</button>
+                        <button type="button" class="tagbtn" data-src="CCTV">CCTV</button>
+                        <button type="button" class="tagbtn" data-src="Selfie">Selfie</button>
+                        <button type="button" class="tagbtn" data-src="Social Media">Social Media</button>
+                        <button type="button" class="tagbtn" data-src="Animated">Animated</button>
+                        <button type="button" class="tagbtn" data-src="Unknown">Unknown</button>
+                    </div>
                 </div>
-            </legend>
-            <div>
-                <div class="hstack" id="srcGroup">
-                    <button type="button" class="tagbtn" data-src="Studio">Studio</button>
-                    <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
-                    <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
-                    <button type="button" class="tagbtn" data-src="Vintage">Vintage</button>
-                    <button type="button" class="tagbtn" data-src="Webcam">Webcam</button>
-                    <button type="button" class="tagbtn" data-src="Spycam">Spycam</button>
-                    <button type="button" class="tagbtn" data-src="CCTV">CCTV</button>
-                    <button type="button" class="tagbtn" data-src="Selfie">Selfie</button>
-                    <button type="button" class="tagbtn" data-src="Social Media">Social Media</button>
-                    <button type="button" class="tagbtn" data-src="Animated">Animated</button>
-                    <button type="button" class="tagbtn" data-src="Unknown">Unknown</button>
-                </div>
-            </div>
-        </fieldset>
+            </fieldset>
 
-        <fieldset class="filter-panel actions">
-            <legend>Actions</legend>
-            <div>
-                <div class="hstack search-wrapper">
-                    <input id="searchBox" type="text" placeholder="Search...">
+            <fieldset class="filter-panel actions">
+                <legend>Actions</legend>
+                <div>
+                    <div class="hstack search-wrapper">
+                        <input id="searchBox" type="text" placeholder="Search...">
+                    </div>
+                    <div class="sort-control">
+                        <label>Sort</label>
+                        <select id="sortSel">
+                            <option value="updated_desc">Updated (newest)</option>
+                            <option value="updated_asc">Updated (oldest)</option>
+                            <option value="size_desc">Size (largest)</option>
+                            <option value="size_asc">Size (smallest)</option>
+                            <option value="length_desc">Length (longest)</option>
+                            <option value="length_asc">Length (shortest)</option>
+                            <option value="year_desc">Year (newest)</option>
+                            <option value="year_asc">Year (oldest)</option>
+                        </select>
+                    </div>
+                    <div class="hstack" style="margin-top:1rem; justify-content: space-between;">
+                        <button id="resetAll" class="btn ghost small" type="button" title="Clear all filters">❌ Clear</button>
+                        <button id="randomBtn" class="btn ghost small" type="button" title="Feeling Lucky">🔀 Random</button>
+                    </div>
                 </div>
-                <div class="sort-control">
-                    <label>Sort</label>
-                    <select id="sortSel">
-                        <option value="updated_desc">Updated (newest)</option>
-                        <option value="updated_asc">Updated (oldest)</option>
-                        <option value="size_desc">Size (largest)</option>
-                        <option value="size_asc">Size (smallest)</option>
-                        <option value="length_desc">Length (longest)</option>
-                        <option value="length_asc">Length (shortest)</option>
-                        <option value="year_desc">Year (newest)</option>
-                        <option value="year_asc">Year (oldest)</option>
-                    </select>
-                </div>
-                <div class="hstack" style="margin-top:1rem; justify-content: space-between;">
-                    <button id="resetAll" class="btn ghost small" type="button" title="Clear all filters">❌ Clear</button>
-                    <button id="randomBtn" class="btn ghost small" type="button" title="Feeling Lucky">🔀 Random</button>
-                </div>
-            </div>
-        </fieldset>
+            </fieldset>
 
-    </div>
-</details>
+        </div>
+    </details>
+    <div id="activeFiltersSummary" class="hstack"></div>
+</div>
 
 <div id="scopeBar" class="hstack" style="margin:4px 0 10px 0;"></div>
 
@@ -113,443 +116,277 @@
 </div>
 
 <script>
-  const $ = s => document.querySelector(s);
-  const $$ = s => Array.from(document.querySelectorAll(s));
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
 
-  const TAKE = 36;
-  const LS_KEY_SRC_LOGIC = "vi_source_logic";
+    const TAKE = 36;
+    const LS_KEY_SRC_LOGIC = "vi_source_logic";
 
-  // ---- state ----
-  let srcSel = new Set();
-  let oriSel = new Set();
-  let sourceLogic = localStorage.getItem(LS_KEY_SRC_LOGIC) || "OR";
-  let skip = 0;
-  let total = 0;
-  let filtersHidden = false;
-  // ---- URL helpers ----
-  function getParams(){
-    const u = new URL(location.href);
-    return u.searchParams;
-  }
-  function setParams(updates){
-    const u = new URL(location.href);
-    const sp = u.searchParams;
-    ["source","orientation","minPerformers","maxPerformers","sort","skip","q", "sourceLogic"].forEach(k=>sp.delete(k));
-    for (const [k,v] of Object.entries(updates)){
-      if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length===0)) continue;
-      if (Array.isArray(v)) sp.set(k, v.join(","));
-      else sp.set(k, String(v));
+    let srcSel = new Set();
+    let oriSel = new Set();
+    let sourceLogic = localStorage.getItem(LS_KEY_SRC_LOGIC) || "OR";
+    let skip = 0;
+    let total = 0;
+
+    function getParams() { return new URL(location.href).searchParams; }
+
+    function setParams(updates) {
+        const u = new URL(location.href);
+        ["source", "orientation", "minPerformers", "maxPerformers", "sort", "skip", "q", "sourceLogic"].forEach(k => u.searchParams.delete(k));
+        for (const [k, v] of Object.entries(updates)) {
+            if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) continue;
+            u.searchParams.set(k, Array.isArray(v) ? v.join(",") : String(v));
+        }
+        history.replaceState({}, "", u.toString());
     }
-    history.replaceState({}, "", u.toString());
-  }
-  function clearFolderFilterInUrl(){
-    const u = new URL(location.href);
-    u.searchParams.delete("dir");
-    u.searchParams.delete("recursive");
-    history.replaceState({}, "", u.toString());
-    renderScopeBar();
-  }
-  function getFolderFilterFromUrl(){
-    const sp = getParams();
-    const dir = sp.get("dir") || "";
-    const recursive = (sp.get("recursive") || "false").toLowerCase() === "true";
-    return { dir, recursive };
-  }
-  function basename(p){
-    if (!p) return "";
-    const parts = p.split(/[\\/]+/).filter(Boolean);
-    return parts.length ? parts[parts.length-1] : p;
-  }
 
-  function quickPerfMatches(btn){
-    const min = btn.getAttribute('data-min') ?? "";
-    const max = btn.getAttribute('data-max') ?? "";
-    const curMin = ($("#minPerf").value ?? "").trim();
-    const curMax = ($("#maxPerf").value ?? "").trim();
-    return (min === curMin) && (max === curMax);
-  }
-  function updateQuickPerfButtons(){
-    $$(".quick-perf").forEach(b=>{
-      b.classList.toggle("on", quickPerfMatches(b));
-    });
-  }
-
-  function readFromUrl(){
-    const sp = getParams();
-    (sp.get("source") || "").split(",").map(s=>s.trim()).filter(Boolean).forEach(v=>srcSel.add(v));
-    (sp.get("orientation") || "").split(",").map(s=>s.trim()).filter(Boolean).forEach(v=>oriSel.add(v));
-    const minP = sp.get("minPerformers"); const maxP = sp.get("maxPerformers");
-    if (minP) $("#minPerf").value = minP;
-    if (maxP) $("#maxPerf").value = maxP;
-    const sort = sp.get("sort");
-    if (sort) $("#sortSel").value = sort;
-    skip = parseInt(sp.get("skip") || "0", 10);
-    if (Number.isNaN(skip) || skip<0) skip = 0;
-    const qInit = sp.get("q");
-    if (qInit) $("#searchBox").value = qInit;
-    $$("#srcGroup .tagbtn").forEach(b=> b.classList.toggle("on", srcSel.has(b.getAttribute("data-src"))));
-    $$("#oriGroup .tagbtn").forEach(b=> b.classList.toggle("on", oriSel.has(b.getAttribute("data-ori"))));
-    updateQuickPerfButtons();
-  }
-
-  // Normalize API item
-  function norm(it){
-    return {
-      Id: it.Id ?? it.id,
-      Filename: it.Filename ?? it.filename,
-      SizeHuman: it.SizeHuman ?? it.sizeHuman,
-      LengthHuman: it.LengthHuman ?? it.lengthHuman,
-      LengthSeconds: it.LengthSeconds ?? it.lengthSeconds,
-      Width: it.Width ?? it.width,
-      Height: it.Height ?? it.height,
-      Year: it.Year ?? it.year,
-      PerformerCount: it.PerformerCount ?? it.performerCount,
-      SourceTypes: it.SourceTypes ?? it.sourceTypes ?? [],
-      OrientationTags: it.OrientationTags ?? it.orientationTags ?? [],
-      OtherTags: it.OtherTags ?? it.otherTags ?? [],
-      StudioName: it.StudioName ?? it.studioName,
-      UpdatedAt: it.UpdatedAt ?? it.updatedAt,
-      Thumb: it.Thumb ?? it.thumb
-    };
-  }
-
-  // ---- rendering ----
-  function card(raw){
-    const item = norm(raw);
-    const res = (item.Width && item.Height) ? `${item.Width}×${item.Height}` : "—";
-    const len = item.LengthHuman ?? "—";
-    const statsHtml = `
-      <span class="chip meta">${escapeHtml(item.SizeHuman)}</span>
-      <span class="chip meta">Len: ${len}</span>
-      <span class="chip meta">Res: ${res}</span>
-    `;
-    const oriHtml = (item.OrientationTags || [])
-      .filter(Boolean)
-      .map(t=>{
-        const filtered = oriSel.has(t) ? " filtered" : "";
-        return `<span class="chip ori clickable${filtered}" data-ori="${escapeHtml(t)}">${escapeHtml(t)}</span>`;
-      })
-      .join(" ");
-    const pc = item.PerformerCount;
-    const perfBadge = badgeFromCountForCard(pc);
-    const perfFiltered = isPerformerFilterActiveFor(pc) ? " filtered" : "";
-    const perfHtml = (pc != null)
-      ? (pc === 1
-          ? `<span class="chip badge clickable${perfFiltered}" data-min="1" data-max="1">${perfBadge}</span>`
-          : pc === 2
-            ? `<span class="chip badge clickable${perfFiltered}" data-min="2" data-max="2">${perfBadge}</span>`
-            : `<span class="chip badge clickable${perfFiltered}" data-min="3" data-max="99">${perfBadge}</span>`)
-      : "";
-    const srcHtml = (item.SourceTypes || [])
-      .filter(Boolean)
-      .map(t=>{
-        const filtered = srcSel.has(t) ? " filtered" : "";
-        return `<span class="chip src clickable${filtered}" data-src="${escapeHtml(t)}">${escapeHtml(t)}</span>`;
-      })
-      .join(" ");
-    return `
-      <a class="library-card" href="/media/${item.Id}">
-        <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
-        <div class="muted filename">${escapeHtml(item.Filename)}</div>
-        <div class="meta">${statsHtml}</div>
-        <div class="meta">
-          ${oriHtml}
-          ${perfHtml}
-          ${srcHtml}
-        </div>
-      </a>`;
-  }
-
-  function badgeFromCountForCard(pc){
-    if (pc === 1) return "Solo";
-    if (pc === 2) return "Duo";
-    if (pc >= 3) return "Group";
-    return "—";
-  }
-  function isPerformerFilterActiveFor(pc){
-    const minP = ($("#minPerf").value ?? "").trim();
-    const maxP = ($("#maxPerf").value ?? "").trim();
-    if (!minP && !maxP) return false;
-    const min = parseInt(minP || "NaN", 10);
-    const max = parseInt(maxP || "NaN", 10);
-    if (Number.isNaN(pc)) return false;
-    if (min === 1 && max === 1) return pc === 1;
-    if (min === 2 && max === 2) return pc === 2;
-    if (min >= 3 && (!maxP || (!Number.isNaN(max) && max >= 3))) return pc >= 3;
-    return false;
-  }
-
-  function escapeHtml(s){
-    s = (s ?? "").toString();
-    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-  }
-
-  function updateCounts(shownAdd){
-    const shown = Math.min(skip + shownAdd, total);
-    $("#shownCount").textContent = Math.min(shown, TAKE);
-    $("#totalCount").textContent = total;
-  }
-
-  function renderScopeBar(){
-    const { dir, recursive } = getFolderFilterFromUrl();
-    const bar = $("#scopeBar");
-    if (!bar) return;
-    bar.innerHTML = "";
-    if (!dir) return;
-
-    const chip = document.createElement("span");
-    chip.className = "chip chip--flex folder";
-    chip.title = dir;
-    const breakable = escapeHtml(dir).replace(/([\\/])/g, '$1&#8203;');
-    chip.innerHTML =
-      `📁 <span class="path">${breakable}</span>` +
-      (recursive ? " (all subfolders)" : "") +
-      ` <button type="button" id="clearFolderFilter" class="x" title="Clear folder filter">×</button>`;
-    bar.appendChild(chip);
-
-    $("#clearFolderFilter")?.addEventListener("click", () => {
-      clearFolderFilterInUrl();
-      reload(true);
-    });
-  }
-
-  // ---- fetch ----
-  function getActiveFilterParams() {
-    const params = new URLSearchParams();
-    params.set("sourceLogic", sourceLogic);
-
-    const q = ($("#searchBox").value ?? "").trim();
-    if (q) params.set("q", q);
-    if (srcSel.size) params.set("source", [...srcSel].join(","));
-    if (oriSel.size) params.set("orientation", [...oriSel].join(","));
-
-    const minP = $("#minPerf").value.trim();
-    const maxP = $("#maxPerf").value.trim();
-    if (minP) params.set("minPerformers", minP);
-    if (maxP) params.set("maxPerformers", maxP);
-
-    const { dir, recursive } = getFolderFilterFromUrl();
-    if (dir) {
-        params.set("dir", dir);
-        params.set("recursive", recursive ? "true" : "false");
+    function clearFolderFilterInUrl() {
+        const u = new URL(location.href);
+        u.searchParams.delete("dir");
+        u.searchParams.delete("recursive");
+        history.replaceState({}, "", u.toString());
+        renderScopeBar();
     }
-    return params;
-  }
 
-  async function fetchPage(append=false){
-    $("#status").textContent = "loading…";
-    $("#loadMore").disabled = true;
-
-    const params = getActiveFilterParams();
-    params.set("skip", String(skip));
-    params.set("take", String(TAKE));
-    params.set("sort", $("#sortSel").value);
-
-    const url = `/api/media/browse?${params.toString()}`;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      total = data.total ?? 0;
-
-      const grid = $("#grid");
-      if (!append) grid.innerHTML = "";
-      const html = (data.items || []).map(card).join("");
-      grid.insertAdjacentHTML("beforeend", html);
-
-      $("#loadMore").disabled = (skip + TAKE >= total);
-      $("#status").textContent = (skip + TAKE >= total) ? "end of results" : "";
-      updateCounts(data.items?.length ?? 0);
-    } catch (e) {
-      $("#status").textContent = "error: " + (e.message || e);
+    function getFolderFilterFromUrl() {
+        const sp = getParams();
+        return { dir: sp.get("dir") || "", recursive: (sp.get("recursive") || "false").toLowerCase() === "true" };
     }
-  }
 
-  function reload(resetSkip=true){
-    if (resetSkip) skip = 0;
-    setParams({
-      source: [...srcSel],
-      orientation: [...oriSel],
-      minPerformers: $("#minPerf").value.trim() || null,
-      maxPerformers: $("#maxPerf").value.trim() || null,
-      sort: $("#sortSel").value,
-      q: ($("#searchBox").value ?? "").trim() || null,
-      skip
-    });
-    renderScopeBar();
-    fetchPage(false);
-  }
+    function quickPerfMatches(btn) {
+        const min = btn.dataset.min ?? "";
+        const max = btn.dataset.max ?? "";
+        return min === ($("#minPerf").value ?? "").trim() && max === ($("#maxPerf").value ?? "").trim();
+    }
 
-  function resetAll(){
-    srcSel.clear();
-    oriSel.clear();
-    $("#minPerf").value = "";
-    $("#maxPerf").value = "";
-    $("#sortSel").value = "updated_desc";
-    $("#searchBox").value = "";
-    $$("#srcGroup .tagbtn").forEach(b=> b.classList.remove("on"));
-    $$("#oriGroup .tagbtn").forEach(b=> b.classList.remove("on"));
-    updateQuickPerfButtons();
-    clearFolderFilterInUrl();
-    reload(true);
-  }
+    function updateQuickPerfButtons() {
+        $$(".quick-perf").forEach(b => b.classList.toggle("on", quickPerfMatches(b)));
+    }
 
-  function debounce(fn, ms){ let t; return function(...args){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args), ms); }; }
-  function scrollTopSmooth(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    function readFromUrl() {
+        const sp = getParams();
+        (sp.get("source") || "").split(",").filter(Boolean).forEach(v => srcSel.add(v.trim()));
+        (sp.get("orientation") || "").split(",").filter(Boolean).forEach(v => oriSel.add(v.trim()));
+        $("#minPerf").value = sp.get("minPerformers") || "";
+        $("#maxPerf").value = sp.get("maxPerformers") || "";
+        $("#sortSel").value = sp.get("sort") || "updated_desc";
+        skip = parseInt(sp.get("skip") || "0", 10);
+        if (Number.isNaN(skip) || skip < 0) skip = 0;
+        $("#searchBox").value = sp.get("q") || "";
+        $$("#srcGroup .tagbtn").forEach(b => b.classList.toggle("on", srcSel.has(b.dataset.src)));
+        $$("#oriGroup .tagbtn").forEach(b => b.classList.toggle("on", oriSel.has(b.dataset.ori)));
+        updateQuickPerfButtons();
+    }
 
-  // ---------- page init ----------
-  document.addEventListener("DOMContentLoaded", () => {
-    const sourceLogicToggle = $("#sourceLogicToggle");
-    readFromUrl();
-    renderScopeBar();
-    reload(false);
-
-    const toolbar = document.querySelector('.library-toolbar');
-    const summaryText = document.querySelector('.summary-text');
-
-      if (toolbar && summaryText) {
-          // Set initial state from localStorage if you want it to be remembered
-          const isToolbarOpen = localStorage.getItem('vi_toolbar_open') !== 'false';
-          toolbar.open = isToolbarOpen;
-          summaryText.textContent = isToolbarOpen ? 'Hide Filters' : 'Show Filters';
-
-          toolbar.addEventListener('toggle', () => {
-              const isOpen = toolbar.open;
-              summaryText.textContent = isOpen ? 'Hide Filters' : 'Show Filters';
-              localStorage.setItem('vi_toolbar_open', isOpen);
-          });
-      }
-
-    // Initialize the new toggle
-    $$('#sourceLogicToggle button').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.logic === sourceLogic);
+    const norm = it => ({
+        Id: it.Id ?? it.id, Filename: it.Filename ?? it.filename, SizeHuman: it.SizeHuman ?? it.sizeHuman,
+        LengthHuman: it.LengthHuman ?? it.lengthHuman, LengthSeconds: it.LengthSeconds ?? it.lengthSeconds,
+        Width: it.Width ?? it.width, Height: it.Height ?? it.height, Year: it.Year ?? it.year,
+        PerformerCount: it.PerformerCount ?? it.performerCount, SourceTypes: it.SourceTypes ?? [],
+        OrientationTags: it.OrientationTags ?? [], OtherTags: it.OtherTags ?? [], StudioName: it.StudioName ?? it.studioName,
+        UpdatedAt: it.UpdatedAt ?? it.updatedAt, Thumb: it.Thumb ?? it.thumb
     });
 
-    sourceLogicToggle.addEventListener("click", (e) => {
-        const btn = e.target.closest('button');
-        if (!btn) return;
+    const escapeHtml = s => (s ?? "").toString().replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
+
+    function card(raw) {
+        const item = norm(raw);
+        const res = (item.Width && item.Height) ? `${item.Width}×${item.Height}` : "—";
+        const len = item.LengthHuman ?? "—";
+        const pc = item.PerformerCount;
+        const perfBadge = (pc === 1) ? "Solo" : (pc === 2) ? "Duo" : (pc >= 3) ? "Group" : "";
+        const statsHtml = `<span class="chip meta">${escapeHtml(item.SizeHuman)}</span> <span class="chip meta">Len: ${len}</span> <span class="chip meta">Res: ${res}</span>`;
+        const oriHtml = (item.OrientationTags || []).map(t => `<span class="chip ori clickable" data-ori="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join(" ");
+        const perfHtml = perfBadge ? `<span class="chip badge clickable perf" data-min="${pc}" data-max="${pc}">${perfBadge}</span>` : "";
+        const srcHtml = (item.SourceTypes || []).map(t => `<span class="chip src clickable" data-src="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join(" ");
+        return `<a class="library-card" href="/media/${item.Id}">
+                    <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
+                    <div class="muted filename">${escapeHtml(item.Filename)}</div>
+                    <div class="meta">${statsHtml}</div>
+                    <div class="meta">${oriHtml} ${perfHtml} ${srcHtml}</div>
+                </a>`;
+    }
+
+    function updateCounts(shownAdd) {
+        const shown = skip + (shownAdd || 0);
+        $("#shownCount").textContent = Math.min(shown, total);
+        $("#totalCount").textContent = total;
+    }
+
+    function renderScopeBar() {
+        const { dir, recursive } = getFolderFilterFromUrl();
+        const bar = $("#scopeBar");
+        if (!bar || !dir) { if (bar) bar.innerHTML = ''; return; }
+        const breakable = escapeHtml(dir).replace(/([\\/])/g, '$1&#8203;');
+        bar.innerHTML = `<span class="chip chip--flex folder" title="${dir}">📁 <span class="path">${breakable}</span> ${recursive ? "(+ subfolders)" : ""} <button type="button" id="clearFolderFilter" class="x" title="Clear folder filter">×</button></span>`;
+        $("#clearFolderFilter")?.addEventListener("click", () => { clearFolderFilterInUrl(); reload(true); });
+    }
+
+    function renderActiveFilterSummary() {
+        const container = $("#activeFiltersSummary");
+        container.innerHTML = '';
+        const createChip = (text, type, removeAction) => {
+            const chip = document.createElement('span');
+            chip.className = `chip chip--flex ${type}`;
+            chip.textContent = text;
+            const x = document.createElement('button');
+            x.type = 'button'; x.className = 'x'; x.innerHTML = '&times;'; x.title = `Remove: ${text}`;
+            x.onclick = removeAction;
+            chip.appendChild(x);
+            container.appendChild(chip);
+        };
+        const q = ($("#searchBox").value ?? "").trim();
+        if (q) createChip(`Search: "${q}"`, 'actions', () => { $("#searchBox").value = ''; reload(); });
+        const minP = $("#minPerf").value.trim(); const maxP = $("#maxPerf").value.trim();
+        if (minP || maxP) {
+            let text = 'Performers: ';
+            if (minP && maxP) { text = (minP === maxP) ? ((minP === "1") ? "Solo" : (minP === "2") ? "Duo" : `${minP} performers`) : `${minP} to ${maxP}`; }
+            else if (minP) { text = (minP === "3") ? "Group (3+)" : `${minP}+`; }
+            else if (maxP) { text += `up to ${maxP}`; }
+            createChip(text, 'perf', () => { $("#minPerf").value = ''; $("#maxPerf").value = ''; reload(); });
+        }
+        [...oriSel].forEach(val => createChip(val, 'ori', () => { oriSel.delete(val); reload(); }));
+        [...srcSel].forEach(val => createChip(val, 'src', () => { srcSel.delete(val); reload(); }));
         
-        sourceLogic = btn.dataset.logic;
-        localStorage.setItem(LS_KEY_SRC_LOGIC, sourceLogic);
-        
-        $$('#sourceLogicToggle button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        reload();
-    });
+        container.style.display = container.children.length > 0 && !document.querySelector('.library-toolbar').open ? 'flex' : 'none';
+    }
 
-    $("#oriGroup").addEventListener("click", (e)=>{
-      const btn = e.target.closest('.tagbtn'); if (!btn) return;
-      const v = btn.getAttribute("data-ori");
-      if (btn.classList.contains("on")) { btn.classList.remove("on"); oriSel.delete(v); }
-      else { btn.classList.add("on"); oriSel.add(v); }
-      reload();
-    });
+    function getActiveFilterParams() {
+        const params = new URLSearchParams({ sourceLogic });
+        const q = ($("#searchBox").value ?? "").trim();
+        if (q) params.set("q", q);
+        if (srcSel.size) params.set("source", [...srcSel].join(","));
+        if (oriSel.size) params.set("orientation", [...oriSel].join(","));
+        const minP = $("#minPerf").value.trim(); if (minP) params.set("minPerformers", minP);
+        const maxP = $("#maxPerf").value.trim(); if (maxP) params.set("maxPerformers", maxP);
+        const { dir, recursive } = getFolderFilterFromUrl();
+        if (dir) { params.set("dir", dir); params.set("recursive", String(recursive)); }
+        return params;
+    }
 
-    $("#srcGroup").addEventListener("click", (e)=>{
-      const btn = e.target.closest('.tagbtn'); if (!btn) return;
-      const v = btn.getAttribute("data-src");
-      if (btn.classList.contains("on")) { btn.classList.remove("on"); srcSel.delete(v); }
-      else { btn.classList.add("on"); srcSel.add(v); }
-      reload();
-    });
-
-    $("#randomBtn").addEventListener("click", async () => {
+    async function fetchPage(append = false) {
+        $("#status").textContent = "loading…";
+        $("#loadMore").disabled = true;
         const params = getActiveFilterParams();
-        params.set("random", "1");
-
+        params.set("skip", String(skip));
+        params.set("take", String(TAKE));
+        params.set("sort", $("#sortSel").value);
         try {
             const res = await fetch(`/api/media/browse?${params.toString()}`);
-            if (!res.ok) {
-                if (res.status === 404) {
-                    throw new Error("No files match the current filters.");
-                }
-                throw new Error("Could not find a random file.");
-            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            if (data && data.id) {
-                window.location.href = `/media/${data.id}`;
-            }
+            total = data.total ?? 0;
+            const grid = $("#grid");
+            if (!append) grid.innerHTML = "";
+            grid.insertAdjacentHTML("beforeend", (data.items || []).map(card).join(""));
+            $("#loadMore").disabled = (skip + (data.items?.length || 0) >= total);
+            $("#status").textContent = (skip + (data.items?.length || 0) >= total) ? "end of results" : "";
+            updateCounts(data.items?.length);
         } catch (e) {
-            alert(e.message || "An error occurred.");
+            $("#status").textContent = "error: " + (e.message || e);
+        }
+    }
+
+    function reload(resetSkip = true) {
+        if (resetSkip) skip = 0;
+        setParams({
+            source: [...srcSel], orientation: [...oriSel],
+            minPerformers: $("#minPerf").value.trim() || null, maxPerformers: $("#maxPerf").value.trim() || null,
+            sort: $("#sortSel").value, q: ($("#searchBox").value ?? "").trim() || null,
+            skip: resetSkip ? 0 : skip
+        });
+        $$("#srcGroup .tagbtn").forEach(b => b.classList.toggle("on", srcSel.has(b.dataset.src)));
+        $$("#oriGroup .tagbtn").forEach(b => b.classList.toggle("on", oriSel.has(b.dataset.ori)));
+        updateQuickPerfButtons();
+        renderScopeBar();
+        renderActiveFilterSummary();
+        fetchPage(false);
+    }
+
+    function resetAll() {
+        srcSel.clear(); oriSel.clear();
+        $("#minPerf").value = ""; $("#maxPerf").value = "";
+        $("#sortSel").value = "updated_desc"; $("#searchBox").value = "";
+        clearFolderFilterInUrl();
+        reload(true);
+    }
+
+    const debounce = (fn, ms) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); }; };
+    const scrollTopSmooth = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    document.addEventListener("DOMContentLoaded", () => {
+        readFromUrl();
+        reload(false);
+
+        const sourceLogicToggle = $("#sourceLogicToggle");
+        $$('#sourceLogicToggle button').forEach(btn => btn.classList.toggle('active', btn.dataset.logic === sourceLogic));
+        sourceLogicToggle.addEventListener("click", e => {
+            const btn = e.target.closest('button'); if (!btn) return;
+            sourceLogic = btn.dataset.logic;
+            localStorage.setItem(LS_KEY_SRC_LOGIC, sourceLogic);
+            $$('#sourceLogicToggle button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            reload();
+        });
+
+        $("#filtersWrap").addEventListener("click", e => {
+            const btn = e.target.closest('.tagbtn, .quick-perf');
+            if (!btn) return;
+            if (btn.matches('.quick-perf')) {
+                if (quickPerfMatches(btn)) { $("#minPerf").value = ""; $("#maxPerf").value = ""; }
+                else { $("#minPerf").value = btn.dataset.min ?? ""; $("#maxPerf").value = btn.dataset.max ?? ""; }
+            } else if (btn.dataset.ori) {
+                const v = btn.dataset.ori; if (oriSel.has(v)) oriSel.delete(v); else oriSel.add(v);
+            } else if (btn.dataset.src) {
+                const v = btn.dataset.src; if (srcSel.has(v)) srcSel.delete(v); else srcSel.add(v);
+            }
+            reload();
+        });
+
+        $("#grid").addEventListener("click", e => {
+            const chip = e.target.closest(".chip.clickable"); if (!chip) return;
+            e.preventDefault(); e.stopPropagation();
+            if (chip.dataset.src && !srcSel.has(chip.dataset.src)) srcSel.add(chip.dataset.src);
+            if (chip.dataset.ori && !oriSel.has(chip.dataset.ori)) oriSel.add(chip.dataset.ori);
+            if (chip.dataset.min) { $("#minPerf").value = chip.dataset.min; $("#maxPerf").value = chip.dataset.max; }
+            reload();
+        });
+        
+        $("#minPerf, #maxPerf, #sortSel").forEach(el => el.addEventListener("change", () => reload()));
+        $("#searchBox").addEventListener("input", debounce(() => reload(), 300));
+        
+        $("#loadMore").addEventListener("click", () => {
+            skip += TAKE;
+            setParams({ ...Object.fromEntries(getActiveFilterParams()), skip });
+            fetchPage(true);
+        });
+        
+        $("#resetAll").addEventListener("click", resetAll);
+        $("#randomBtn").addEventListener("click", async () => {
+            const params = getActiveFilterParams(); params.set("random", "1");
+            try {
+                const res = await fetch(`/api/media/browse?${params.toString()}`);
+                if (!res.ok) throw new Error(res.status === 404 ? "No files match filters." : "Could not find a random file.");
+                const data = await res.json();
+                if (data?.id) window.location.href = `/media/${data.id}`;
+            } catch (e) { alert(e.message || "An error occurred."); }
+        });
+
+        const toolbar = document.querySelector('.library-toolbar');
+        const summaryText = document.querySelector('.summary-text');
+        if (toolbar && summaryText) {
+            const isToolbarOpen = localStorage.getItem('vi_toolbar_open') !== 'false';
+            toolbar.open = isToolbarOpen;
+            summaryText.textContent = isToolbarOpen ? 'Hide Filters' : 'Show Filters';
+            renderActiveFilterSummary();
+            toolbar.addEventListener('toggle', () => {
+                const isOpen = toolbar.open;
+                summaryText.textContent = isOpen ? 'Hide Filters' : 'Show Filters';
+                localStorage.setItem('vi_toolbar_open', isOpen);
+                renderActiveFilterSummary();
+            });
         }
     });
-
-    $("#grid").addEventListener("click", (e)=>{
-      const chip = e.target.closest(".chip.clickable");
-      if (!chip) return;
-      e.preventDefault(); e.stopPropagation();
-
-      const vSrc = chip.dataset.src;
-      const vOri = chip.dataset.ori;
-      let changed = false;
-
-      if (vSrc && !srcSel.has(vSrc)) {
-        srcSel.add(vSrc);
-        $(`#srcGroup .tagbtn[data-src="${CSS.escape(vSrc)}"]`)?.classList.add("on");
-        changed = true;
-      }
-      if (vOri && !oriSel.has(vOri)) {
-        oriSel.add(vOri);
-        $(`#oriGroup .tagbtn[data-ori="${CSS.escape(vOri)}"]`)?.classList.add("on");
-        changed = true;
-      }
-
-      if (chip.classList.contains("perf")) {
-        const min = chip.getAttribute("data-min") || "";
-        const max = chip.getAttribute("data-max") || "";
-        if ($("#minPerf").value !== min || $("#maxPerf").value !== max) {
-          $("#minPerf").value = min;
-          $("#maxPerf").value = max;
-          updateQuickPerfButtons();
-          changed = true;
-        }
-      }
-
-      if (changed) reload();
-    });
-
-    document.addEventListener("click", (e) => {
-      const b = e.target.closest('.quick-perf'); 
-      if (!b) return;
-      if (quickPerfMatches(b)) {
-        $("#minPerf").value = "";
-        $("#maxPerf").value = "";
-      } else {
-        $("#minPerf").value = b.getAttribute("data-min") ?? "";
-        $("#maxPerf").value = b.getAttribute("data-max") ?? "";
-      }
-      updateQuickPerfButtons();
-      scrollTopSmooth();
-      reload();
-    });
-
-    $("#minPerf").addEventListener("change", ()=> { reload(); updateQuickPerfButtons(); });
-    $("#maxPerf").addEventListener("change", ()=> { reload(); updateQuickPerfButtons(); });
-
-    $("#sortSel").addEventListener("change", ()=> reload());
-    const onSearch = debounce(()=> reload(), 300);
-    $("#searchBox").addEventListener("input", onSearch);
-    $("#clearSearch").addEventListener("click", ()=>{
-      $("#searchBox").value = "";
-      reload();
-    });
-    $("#loadMore").addEventListener("click", ()=>{
-      skip += TAKE;
-      setParams({
-        source: [...srcSel],
-        orientation: [...oriSel],
-        minPerformers: $("#minPerf").value.trim() || null,
-        maxPerformers: $("#maxPerf").value.trim() || null,
-        sort: $("#sortSel").value,
-        q: ($("#searchBox").value ?? "").trim() || null,
-        skip
-      });
-      fetchPage(true);
-    });
-
-    $("#resetAll").addEventListener("click", resetAll);
-  });
 </script>
 
 @await Html.PartialAsync("_TopNavEnd")
