@@ -1,3 +1,4 @@
+
 @page "/media/{id:int}"
 @model VideoIndex.Web.Pages.Media.DetailsModel
 
@@ -95,6 +96,7 @@
       </div>
       <div class="right hstack">
         <a id="navPrev" class="btn ghost disabled" href="#" aria-disabled="true" title="No previous item">← Prev</a>
+        <button id="navRandom" class="btn ghost" type="button" title="Feeling Lucky ✨">🔀</button>
         <a id="navNext" class="btn ghost disabled" href="#" aria-disabled="true" title="No next item">Next →</a>
       </div>
     </div>
@@ -162,7 +164,7 @@
             <div id="otherChips" class="hstack"></div>
             <div class="muted">Type a tag and press <b>,</b> or <b>Enter</b> to commit.</div>
           </div>
-          <div class="field" style="grid-column:1 / -1;">
+           <div class="field" style="grid-column:1 / -1;">
             <label>Performers <small>(comma or Enter to add)</small></label>
             <input id="performersInput" type="text" list="dl-performers" placeholder="dean winchester, mike read">
             <datalist id="dl-performers"></datalist>
@@ -178,22 +180,27 @@
   const id = @m.Id;
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
-
   // sticky keys
   const LS_KEYS = { untagged: "vi_nav_untagged", tagged: "vi_nav_tagged", dirOnly: "vi_nav_dir_only", dirPath: "vi_nav_dir_path" };
+  function loadFilterState(){ const u = localStorage.getItem(LS_KEYS.untagged) === "true"; const t = localStorage.getItem(LS_KEYS.tagged) === "true"; return (u && t) ?
+  { u:false, t:false } : { u, t }; }
+  function saveFilterState(u, t){ localStorage.setItem(LS_KEYS.untagged, u ? "true" : "false");
+  localStorage.setItem(LS_KEYS.tagged, t ? "true" : "false"); }
 
-  function loadFilterState(){ const u = localStorage.getItem(LS_KEYS.untagged) === "true"; const t = localStorage.getItem(LS_KEYS.tagged) === "true"; return (u && t) ? { u:false, t:false } : { u, t }; }
-  function saveFilterState(u, t){ localStorage.setItem(LS_KEYS.untagged, u ? "true" : "false"); localStorage.setItem(LS_KEYS.tagged, t ? "true" : "false"); }
-
-  function loadDirState(){ const only = localStorage.getItem(LS_KEYS.dirOnly) === "true"; const path = localStorage.getItem(LS_KEYS.dirPath) || ""; return { only, path }; }
-  function saveDirState(only, path){ localStorage.setItem(LS_KEYS.dirOnly, only ? "true" : "false"); if (path !== undefined) localStorage.setItem(LS_KEYS.dirPath, path || ""); }
+  function loadDirState(){ const only = localStorage.getItem(LS_KEYS.dirOnly) === "true";
+  const path = localStorage.getItem(LS_KEYS.dirPath) || ""; return { only, path };
+  }
+  function saveDirState(only, path){ localStorage.setItem(LS_KEYS.dirOnly, only ? "true" : "false"); if (path !== undefined) localStorage.setItem(LS_KEYS.dirPath, path || "");
+  }
   function currentParentDir(){ return document.getElementById("vi_meta")?.dataset.parentDir || ""; }
 
   // --- Breadcrumbs ---
-  function eqPath(a,b){ if (!a || !b) return a === b; const na=a.replace(/\\/g,'/'); const nb=b.replace(/\\/g,'/'); return na.toLowerCase()===nb.toLowerCase(); }
+  function eqPath(a,b){ if (!a || !b) return a === b;
+  const na=a.replace(/\\/g,'/'); const nb=b.replace(/\\/g,'/'); return na.toLowerCase()===nb.toLowerCase(); }
 
   function makeBreadcrumbs(){
-    const meta = document.getElementById('vi_meta'); if (!meta) return [];
+    const meta = document.getElementById('vi_meta');
+    if (!meta) return [];
     const rootPath = meta.dataset.rootPath || '';
     const rootName = meta.dataset.rootName || (rootPath || 'Root');
     const parentDir = meta.dataset.parentDir || '';
@@ -202,13 +209,16 @@
     const sep = rootPath.includes('\\') ? '\\' : '/';
     const join = (base, part) => base.replace(new RegExp(sep + '$'), '') + sep + part;
 
-    const rpN = rootPath.replace(/\\/g,'/'); const pdN = parentDir.replace(/\\/g,'/');
+    const rpN = rootPath.replace(/\\/g,'/');
+    const pdN = parentDir.replace(/\\/g,'/');
     let rel = '';
     if (pdN.toLowerCase().startsWith(rpN.toLowerCase())) rel = pdN.slice(rpN.length).replace(/^\/+/, '');
-    const parts = rel ? rel.split('/').filter(Boolean) : [];
+    const parts = rel ?
+    rel.split('/').filter(Boolean) : [];
     const crumbs = [{ name: rootName, path: rootPath }];
     let acc = rootPath;
-    for (const part of parts) { acc = join(acc, part); crumbs.push({ name: part, path: acc }); }
+    for (const part of parts) { acc = join(acc, part); crumbs.push({ name: part, path: acc });
+    }
     return crumbs;
   }
 
@@ -225,7 +235,6 @@
       span.setAttribute('data-path', c.path);
       span.title = 'Set as selected directory for navigation';
       if (only && path && eqPath(path, c.path)) span.classList.add('selected');
-      
       const textNode = document.createTextNode(c.name);
       span.appendChild(textNode);
       
@@ -249,7 +258,6 @@
     const navDirOnly = document.getElementById('navDirOnly'); if (navDirOnly) navDirOnly.checked = true;
     renderBreadcrumbs(); refreshNav();
   });
-
   // Suggestions
   async function fill(field, datalistId) {
     try {
@@ -265,7 +273,8 @@
       }
     } catch {}
   }
-  function refreshSuggestions(){ fill("studio", "dl-studio"); fill("other", "dl-other"); fill("performers", "dl-performers"); }
+  function refreshSuggestions(){ fill("studio", "dl-studio"); fill("other", "dl-other"); fill("performers", "dl-performers");
+  }
 
   // State
   const srcAllowed = ["Studio","OnlyFans","Amateur","Vintage","Webcam","Spycam","CCTV","Selfie","Social Media","Animated","Unknown"];
@@ -274,21 +283,25 @@
   let orientationSel = new Set(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(initOri)));
   let otherTagsArr = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initOther));
   let performersArr = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initPerf));
-
   // Utils
-  function badgeFromCount(pc){ if(pc===1) return "Solo"; if(pc===2) return "Duo"; if(pc>=3) return "Group"; return "n/a"; }
+  function badgeFromCount(pc){ if(pc===1) return "Solo"; if(pc===2) return "Duo"; if(pc>=3) return "Group"; return "n/a";
+  }
   function normToken(s){ return s.trim().replace(/\s+/g,' '); }
-  function addToken(arr,t){ const v=normToken(t); if(!v) return; if(!arr.some(x=>x.localeCompare(v,undefined,{sensitivity:'accent'})===0)) arr.push(v); markDirty(); }
+  function addToken(arr,t){ const v=normToken(t); if(!v) return; if(!arr.some(x=>x.localeCompare(v,undefined,{sensitivity:'accent'})===0)) arr.push(v); markDirty();
+  }
   function findIndexCI(arr,t){ return arr.findIndex(x=>x.localeCompare(t,undefined,{sensitivity:'accent'})===0); }
-  function removeToken(arr,t){ const i=findIndexCI(arr,t); if(i>=0) arr.splice(i,1); markDirty(); }
+  function removeToken(arr,t){ const i=findIndexCI(arr,t); if(i>=0) arr.splice(i,1); markDirty();
+  }
 
   // Save status
   const saveBtn = $("#saveBtn");
   const statusEl = $("#saveStatus");
   let statusFadeTimer = null, statusClearTimer = null;
   function showStatus(text, { autohide = false, delay = 1800 } = {}) {
-    if (statusFadeTimer) { clearTimeout(statusFadeTimer); statusFadeTimer = null; }
-    if (statusClearTimer) { clearTimeout(statusClearTimer); statusClearTimer = null; }
+    if (statusFadeTimer) { clearTimeout(statusFadeTimer);
+    statusFadeTimer = null; }
+    if (statusClearTimer) { clearTimeout(statusClearTimer); statusClearTimer = null;
+    }
     statusEl.textContent = text; statusEl.classList.remove("fade");
     if (autohide) {
       statusFadeTimer = setTimeout(() => {
@@ -312,9 +325,11 @@
       performerCount: pcV ? (Number.isNaN(parseInt(pcV,10)) ? null : parseInt(pcV,10)) : null
     };
   }
-  function eq(a,b){ return JSON.stringify(a) === JSON.stringify(b); }
+  function eq(a,b){ return JSON.stringify(a) === JSON.stringify(b);
+  }
   function setSaveState(state){ saveBtn.classList.remove("idle","dirty","saved"); saveBtn.classList.add(state.toLowerCase()); }
-  function markDirty(){ if (!initialSnapshot) return; const cur = snapshotDto(); setSaveState(eq(initialSnapshot, cur) ? "idle" : "dirty"); }
+  function markDirty(){ if (!initialSnapshot) return; const cur = snapshotDto();
+  setSaveState(eq(initialSnapshot, cur) ? "idle" : "dirty"); }
 
   function renderPcButtons(){
     const pc = parseInt($("#performerCount").value || "NaN", 10);
@@ -360,7 +375,6 @@
   function renderSummary(){
     const wrap = $("#summaryChips"); if (!wrap) return;
     wrap.innerHTML = "";
-
     // 1) Performer Count badge → library with min/max
     const pcVal = (function(){ const v = parseInt($("#performerCount").value || "NaN", 10); return Number.isNaN(v) ? null : v; })();
     const pcText = (function(pc){ if(pc===1) return "Solo"; if(pc===2) return "Duo"; if(pc>=3) return "Group"; return "n/a"; })(pcVal);
@@ -375,12 +389,10 @@
     [...orientationSel].forEach(v => {
       wrap.appendChild(makeFilterChip(v, "ori", `/library?orientation=${encodeURIComponent(v)}`, `Filter by ${v}`));
     });
-
     // 3) Source Types
     [...sourceTypesSel].forEach(v => {
       wrap.appendChild(makeFilterChip(v, "src", `/library?source=${encodeURIComponent(v)}`, `Filter by ${v}`));
     });
-
     // 4) Studio name (single)
     const studio = ($("#studioName").value || "").trim();
     if (studio){
@@ -390,7 +402,8 @@
     // 5) Source user (single)
     const user = ($("#sourceUser").value || "").trim();
     if (user){
-      const prefer = sourceTypesSel.has("OnlyFans") ? "OnlyFans" : (sourceTypesSel.has("Social Media") ? "Social Media" : "");
+      const prefer = sourceTypesSel.has("OnlyFans") ?
+      "OnlyFans" : (sourceTypesSel.has("Social Media") ? "Social Media" : "");
       const url = prefer ? `/library?source=${encodeURIComponent(prefer)}&q=${encodeURIComponent(user)}` : `/library?q=${encodeURIComponent(user)}`;
       wrap.appendChild(makeFilterChip(user, "user", url, `Filter by source user ${user}`));
     }
@@ -400,7 +413,6 @@
     perfSorted.forEach(name => {
       wrap.appendChild(makeFilterChip(name, "pname", `/library?q=${encodeURIComponent(name)}`, `Filter by performer ${name}`));
     });
-
     // 7) Other tags (multi)
     const otherSorted = otherTagsArr.slice().sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
     otherSorted.forEach(tag => {
@@ -422,7 +434,8 @@
     const hasOri    = orientationSel.size > 0;
     const hasOther  = otherTagsArr.length > 0;
     const hasPerf   = performersArr.length > 0;
-    return hasYear || hasPC || hasStudio || hasUser || hasSrc || hasOri || hasOther || hasPerf;
+    return hasYear || hasPC || hasStudio || hasUser || hasSrc ||
+    hasOri || hasOther || hasPerf;
   }
 
   // Prev/Next nav (with optional dir constraint)
@@ -434,7 +447,6 @@
     const u = document.getElementById("navUntagged")?.checked === true;
     const t = document.getElementById("navTagged")?.checked === true;
     const { only: dirOnly, path: dirPath } = loadDirState();
-
     function setNavLink(a, targetId, enabledTitle, disabledTitle){
       if (targetId != null) {
         a.href = `/media/${targetId}`;
@@ -453,7 +465,8 @@
 
     try{
       let url = `/api/media/nav?id=${id}&untaggedOnly=${u ? "true" : "false"}&taggedOnly=${t ? "true" : "false"}`;
-      if (dirOnly && dirPath) { url += `&dir=${encodeURIComponent(dirPath)}&recursive=false`; }
+      if (dirOnly && dirPath) { url += `&dir=${encodeURIComponent(dirPath)}&recursive=false`;
+      }
 
       const r = await fetch(url);
       if(!r.ok){
@@ -484,6 +497,7 @@
       const anyData = hasAnyEditData();
       box.open = !anyData;
       refreshEditSummary();
+      
       box.addEventListener("toggle", refreshEditSummary);
     }
 
@@ -495,7 +509,6 @@
     const navUntagged = document.getElementById("navUntagged");
     const navTagged   = document.getElementById("navTagged");
     const navDirOnly  = document.getElementById("navDirOnly");
-
     (function initSticky(){
       const { u, t } = loadFilterState();
       if (navUntagged) navUntagged.checked = u;
@@ -510,8 +523,10 @@
     renderBreadcrumbs();
     function applyMutualExclusivity(changed){
       if (!navUntagged || !navTagged) return;
-      if (changed === "u" && navUntagged.checked) { navTagged.checked = false; }
-      if (changed === "t" && navTagged.checked)   { navUntagged.checked = false; }
+      if (changed === "u" && navUntagged.checked) { navTagged.checked = false;
+      }
+      if (changed === "t" && navTagged.checked)   { navUntagged.checked = false;
+      }
       saveFilterState(navUntagged.checked, navTagged.checked);
       refreshNav();
     }
@@ -524,8 +539,38 @@
       else saveDirState(on, loadDirState().path);
       renderBreadcrumbs(); refreshNav();
     });
-
     refreshNav();
+    
+    // Feeling Lucky Button
+    $("#navRandom").addEventListener("click", async () => {
+        const { only: dirOnly, path: dirPath } = loadDirState();
+        let url = `/api/media/browse?random=1`;
+        if (dirOnly && dirPath) {
+            url += `&dir=${encodeURIComponent(dirPath)}`;
+        }
+        
+        try {
+            const res = await fetch(url);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    throw new Error("No files match the current directory filter.");
+                }
+                throw new Error("Could not find a random file.");
+            }
+            const data = await res.json();
+            if (data && data.id) {
+                // To avoid navigating to the same page
+                if (data.id === id) {
+                    // If we get the same ID, just try again
+                    $("#navRandom").click();
+                    return;
+                }
+                window.location.href = `/media/${data.id}`;
+            }
+        } catch (e) {
+            alert(e.message || "An error occurred.");
+        }
+    });
 
     // Quick PC buttons
     document.addEventListener("click", (e) => {
@@ -548,10 +593,8 @@
       if (sourceTypesSel.has(val)) sourceTypesSel.delete(val); else sourceTypesSel.add(val);
       renderTagButtons(); renderSummary(); updateConditionals(); markDirty();
     });
-
     // Text inputs
     ["#year","#studioName","#sourceUser"].forEach(sel => { const el = document.querySelector(sel); el?.addEventListener("input", () => { renderSummary(); markDirty(); }); });
-
     // Other tags input
     const otherInput = $("#otherTagsInput");
     otherInput.addEventListener("keydown", (e)=>{
@@ -565,7 +608,6 @@
       const btn = e.target.closest('button[data-remove-other]'); if (!btn) return;
       removeToken(otherTagsArr, btn.getAttribute('data-remove-other')); renderOtherChips(); renderSummary(); markDirty();
     });
-
     // Performers
     const perfInput = $("#performersInput");
     perfInput.addEventListener("keydown", (e)=>{
@@ -610,7 +652,6 @@
       saveBtn.disabled = false;
     }
   });
-
   // Auto-tag (no dry-run)
   (function(){
     const btn = document.getElementById("autoTagBtn");
@@ -664,6 +705,7 @@
     toggle.textContent = "Stop";
     video.play().catch(()=>{ status.textContent = "Couldn’t start playback (codec/permissions)."; });
   }
+  
   function showThumb(){
     try { video.pause(); } catch {}
     video.removeAttribute("src"); video.load();
@@ -693,7 +735,6 @@
     try { await postJson(`/api/media/${id}/reveal`); status.textContent = "Revealed."; }
     catch{ status.textContent = "Failed to reveal."; }
   });
-
   video.addEventListener("error", () => {
     status.textContent = "Browser couldn't play this file. Try \"Open in player\".";
   });

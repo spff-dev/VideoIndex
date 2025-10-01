@@ -20,6 +20,7 @@
         </select>
         <button id="startBtn" class="btn primary">Start Scan</button>
         <button id="stopBtn" class="btn" style="display: none; background-color:#c62828;">Stop Scan</button>
+        <button id="exportErrorsBtn" class="btn ghost" style="display: none;">Export Errors</button>
         <span id="status" class="muted">idle</span>
     </div>
 
@@ -86,9 +87,11 @@
     const generateMissingThumbsBtn = $("#generateMissingThumbsBtn");
     const cleanupTagsBtn = $("#cleanupTagsBtn");
     const adminStatus = $("#adminStatus");
+    const exportErrorsBtn = $("#exportErrorsBtn");
 
     let currentScanId = null;
     let connection = null;
+    let errorLog = [];
 
     function log(msg, cls = "") {
         const time = new Date().toLocaleTimeString();
@@ -114,6 +117,9 @@
             connection = null;
         }
         currentScanId = null;
+        if (errorLog.length === 0) {
+            exportErrorsBtn.style.display = 'none';
+        }
     }
     
     // --- THIS IS THE CORRECTED LOGIC ---
@@ -150,6 +156,8 @@
         generateMissingThumbsBtn.disabled = true;
         stopBtn.style.display = 'inline-flex';
         logEl.innerHTML = "";
+        exportErrorsBtn.style.display = 'none';
+        errorLog = [];
         setStatus("connecting…");
 
         const rootId = parseInt($("#rootSelect").value, 10);
@@ -163,10 +171,7 @@
         let totalFiles = 0;
 
         connection.on("progress", evt => {
-            let { processed = 0, indexed = 0, tagged = 0, thumbsMade = 0, errors = 0 } = evt;
-            countsEl.textContent = `${processed}/${totalFiles} | Indexed: ${indexed} | Tagged: ${tagged} | Thumbs: ${thumbsMade} | Errors: ${errors}`;
-            progEl.value = processed;
-          
+            // This is the main change: Check the event kind first!
             switch (evt.kind) {
                 case "started":
                     totalFiles = evt.totals.files || 0;
@@ -174,17 +179,26 @@
                     setStatus("running");
                     log(`Scan started on "${evt.root.name}" — found ${totalFiles} files to process.`, "muted");
                     break;
+                case "heartbeat":
+                case "completed":
+                    let { processed = 0, indexed = 0, tagged = 0, thumbsMade = 0, errors = 0 } = evt;
+                    countsEl.textContent = `${processed}/${totalFiles} | Indexed: ${indexed} | Tagged: ${tagged} | Thumbs: ${thumbsMade} | Errors: ${errors}`;
+                    progEl.value = processed;
+                    if (evt.kind === "completed") {
+                        setStatus("done");
+                        log(`Completed in ${evt.elapsedMs} ms.`, "ok");
+                        resetUiState();
+                    }
+                    break;
                 case "indexError":
-                    log(`Index error: ${evt.file} — ${evt.error}`, "err");
+                    const errorMsg = `File: ${evt.file} — Error: ${evt.error}`;
+                    log(errorMsg, "err");
+                    errorLog.push(errorMsg); // Capture the error
+                    exportErrorsBtn.style.display = 'inline-flex'; // Show the button
                     break;
                 case "cancelled":
                     setStatus("stopped");
                     log(`Scan was stopped by user.`, "warn");
-                    resetUiState();
-                    break;
-                case "completed":
-                    setStatus("done");
-                    log(`Completed in ${evt.elapsedMs} ms.`, "ok");
                     resetUiState();
                     break;
             }
@@ -270,6 +284,21 @@
             startBtn.disabled = false;
             generateMissingThumbsBtn.disabled = false;
         }
+    });
+    exportErrorsBtn.addEventListener("click", () => {
+        if (errorLog.length === 0) return;
+
+        const fileContent = errorLog.join("\r\n");
+        const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        a.download = `scan-errors-${timestamp}.log`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     });
     cleanupTagsBtn.addEventListener("click", async () => {
           adminStatus.textContent = "Cleaning up tags...";

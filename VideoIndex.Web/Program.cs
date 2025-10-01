@@ -767,46 +767,71 @@ app.MapPost("/api/autotag/cleanup", async (IDbContextFactory<VideoIndexDbContext
 {
     await using var db = await dbFactory.CreateDbContextAsync();
     int cleanedCount = 0;
+    int scannedCount = 0;
+    const int batchSize = 500; // Process 500 records at a time
+    int page = 0;
 
-    // This query cannot be translated by EF Core, so we must fetch the data first.
-    var candidates = await db.MediaFiles
-        .Where(m => m.OtherTags != null && m.OtherTags.Contains("x-auto-tagged"))
-        .ToListAsync();
-
-    foreach (var m in candidates)
+    // Use a loop to process records in batches
+    while (true)
     {
-        // Check if the file has any other meaningful tags.
-        bool hasOtherMeaningfulTags =
-            (m.SourceTypes?.Count > 0) ||
-            (m.OrientationTags?.Count > 0) ||
-            (m.PerformerNames?.Count > 0) ||
-            !string.IsNullOrWhiteSpace(m.StudioName) ||
-            !string.IsNullOrWhiteSpace(m.SourceUsername) ||
-            m.Year.HasValue ||
-            m.PerformerCount.HasValue ||
-            (m.OtherTags?.Count > 1); // True if there's more than just "x-auto-tagged"
+        // Fetch one batch of potential candidates from the database
+        var batch = await db.MediaFiles
+            .Where(m => m.OtherTags != null)
+            .OrderBy(m => m.Id) // A stable order is crucial for paging
+            .Skip(page * batchSize)
+            .Take(batchSize)
+            .ToListAsync();
 
-        if (!hasOtherMeaningfulTags)
+        // If the batch is empty, we've processed all records
+        if (batch.Count == 0)
         {
-            // If it has no other tags, remove the 'x-auto-tagged' tag.
-            m.OtherTags.Remove("x-auto-tagged");
-            if (m.OtherTags.Count == 0)
-            {
-                m.OtherTags = null; // Set to null if the list is now empty.
-            }
-            m.UpdatedAt = DateTimeOffset.UtcNow;
-            cleanedCount++;
+            break;
         }
-    }
 
-    if (cleanedCount > 0)
-    {
-        await db.SaveChangesAsync();
+        scannedCount += batch.Count;
+
+        // Filter this smaller, in-memory batch
+        var toProcess = batch
+            .Where(m => m.OtherTags!.Contains("x-auto-tagged"))
+            .ToList();
+
+        foreach (var m in toProcess)
+        {
+            // The same cleanup logic as before
+            bool hasOtherMeaningfulTags =
+                (m.SourceTypes?.Count > 0) ||
+                (m.OrientationTags?.Count > 0) ||
+                (m.PerformerNames?.Count > 0) ||
+                !string.IsNullOrWhiteSpace(m.StudioName) ||
+                !string.IsNullOrWhiteSpace(m.SourceUsername) ||
+                m.Year.HasValue ||
+                m.PerformerCount.HasValue ||
+                (m.OtherTags?.Count > 1);
+
+            if (!hasOtherMeaningfulTags)
+            {
+                m.OtherTags?.Remove("x-auto-tagged");
+                if (m.OtherTags?.Count == 0)
+                {
+                    m.OtherTags = null;
+                }
+                m.UpdatedAt = DateTimeOffset.UtcNow;
+                cleanedCount++;
+            }
+        }
+
+        // Save changes at the end of each batch
+        if (toProcess.Any())
+        {
+            await db.SaveChangesAsync();
+        }
+
+        page++; // Move to the next page for the next iteration
     }
 
     return Results.Ok(new
     {
-        filesScanned = candidates.Count,
+        filesScanned = scannedCount,
         filesCleaned = cleanedCount
     });
 });
@@ -1005,6 +1030,8 @@ app.MapGet("/api/media/browse", async (
     if (string.IsNullOrWhiteSpace(sort)) sort = "updated_desc";
     sort = sort.ToLowerInvariant();
 
+    bool getRandom = req.Query.ContainsKey("random");
+
     List<string> srcFilter = SplitCsv(req.Query["source"].ToString());
     string sourceLogic = req.Query["sourceLogic"].ToString()?.ToUpperInvariant() ?? "OR";
     List<string> oriFilter = SplitCsv(req.Query["orientation"].ToString());
@@ -1139,9 +1166,23 @@ app.MapGet("/api/media/browse", async (
         _ => pre.OrderByDescending(m => m.UpdatedAt), // updated_desc
     };
 
-    int total = ordered.Count();
+    var orderedList = ordered.ToList();
+    int total = orderedList.Count;
 
-    var page = ordered
+    if (getRandom)
+    {
+        if (total == 0)
+        {
+            return Results.NotFound();
+        }
+
+        int randomSkip = new Random().Next(0, total);
+        var randomItem = orderedList.Skip(randomSkip).FirstOrDefault();
+
+        return Results.Ok(new { id = randomItem?.Id });
+    }
+
+    var page = orderedList
         .Skip(skip)
         .Take(take)
         .Select(m => new
@@ -1176,14 +1217,8 @@ app.MapGet("/api/media/browse", async (
     static IEnumerable<string> PathTokens(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) yield break;
-
-        // yield the full path once (already added above; this is defensive)
-        // yield return path;
-
-        // split on both separators
         var parts = Regex.Split(path, "[\\\\/]+")
                          .Where(p => !string.IsNullOrWhiteSpace(p));
-
         foreach (var p in parts)
             yield return p;
     }
@@ -1208,7 +1243,6 @@ app.MapGet("/api/media/browse", async (
             : $"{ts.Minutes:0}:{ts.Seconds:00}";
     }
 
-    // Parse q → OR of AND-clauses (split on " or ")
     static List<List<string>> ParseSearch(string? query)
     {
         var result = new List<List<string>>();
@@ -1225,7 +1259,6 @@ app.MapGet("/api/media/browse", async (
         return result;
     }
 
-    // OR across clauses; each clause requires all its terms to match somewhere in the haystack
     static bool MatchesAny(IEnumerable<string> hay, List<List<string>> clauses)
     {
         foreach (var clause in clauses)
@@ -1249,9 +1282,6 @@ app.MapGet("/api/media/browse", async (
     }
 });
 
-
-
-
 app.MapHub<ScanHub>("/hubs/scan");
 app.MapGet("/api/media/thumb", () => Results.BadRequest("Missing media id. Use /api/media/{id:int}/thumb"));
 app.MapGet("/api/media/stream", () => Results.BadRequest("Missing media id. Use /api/media/{id:int}/stream"));
@@ -1267,7 +1297,6 @@ public static class ScanManager
 }
 public record RootDto(string Name, string Path);
 
-// New DTO (accepts new + legacy fields)
 public record UpdateMediaDto(
     string[]? SourceTypes,
     string? StudioName,
@@ -1428,21 +1457,13 @@ static class ProbeParser
 // ---------- AutoTagger helper ----------
 static class AutoTagger
 {
-    // Rules:
-    // - If file name OR path contains "OnlyFans" (or "Only Fans") -> add SourceTypes: OnlyFans + Amateur
-    //   If path contains segment "OnlyFans" (or "Only Fans"), next segment is SourceUsername.
-    // - If path contains segment "Studios", next segment is StudioName and add SourceTypes: Studio
-    // - Always add "x-auto-tagged" to OtherTags.
-    // - Never remove existing values. Do not overwrite StudioName/SourceUsername if they already exist.
-    // - Case-insensitive, tolerant to slashes and spaces in segment names.
     public static bool Apply(MediaFile m, bool dryRun)
     {
-        var initialSnapshot = Snapshot(m); // Snapshot before any changes
+        var initialSnapshot = Snapshot(m);
 
         var src = new HashSet<string>(m.SourceTypes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
         var other = new HashSet<string>(m.OtherTags ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
 
-        // --- Temporarily remove x-auto-tagged to check for other tags later ---
         other.Remove("x-auto-tagged");
 
         var fp = SafeFullPath(m.Path);
@@ -1450,7 +1471,6 @@ static class AutoTagger
         var segs = SplitSegments(fp);
         static string normSeg(string s) => s.Replace(" ", "");
 
-        // --- Rule application ---
         bool hasOnlyFansText = Regex.IsMatch(fp ?? "", @"only\s*fans", RegexOptions.IgnoreCase)
                             || Regex.IsMatch(filename, @"only\s*fans", RegexOptions.IgnoreCase);
 
@@ -1475,7 +1495,6 @@ static class AutoTagger
             }
         }
 
-        // --- Final logic for x-auto-tagged ---
         var hasAnyMeaningfulTags = src.Any() ||
                                    !string.IsNullOrWhiteSpace(m.StudioName) ||
                                    !string.IsNullOrWhiteSpace(m.SourceUsername) ||
@@ -1485,15 +1504,12 @@ static class AutoTagger
         {
             other.Add("x-auto-tagged");
         }
-        // If we have no meaningful tags, we ensure 'x-auto-tagged' is NOT present.
 
-        // --- Write back changes ---
         var newSrc = src.Count > 0 ? src.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList() : null;
         var newOther = other.Count > 0 ? other.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList() : null;
         m.SourceTypes = newSrc;
         m.OtherTags = newOther;
 
-        // --- Compare with initial state to see if anything actually changed ---
         var finalSnapshot = Snapshot(m);
         bool changed = !JsonSerializer.Serialize(initialSnapshot).Equals(JsonSerializer.Serialize(finalSnapshot));
 

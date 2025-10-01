@@ -9,99 +9,107 @@
 
 <h1>Library</h1>
 
-<div class="library-toolbar">
-  <div id="filtersWrap" class="library-filters">
+<details class="library-toolbar" open>
+    <summary>
+        <span class="summary-text">Hide Filters</span>
+    </summary>
+    <div id="filtersWrap" class="library-filters">
 
-    <fieldset class="filter-panel perf">
-      <legend>Number of Performers</legend>
-      <div class="hstack">
-        <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
-        <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
-        <button type="button" class="tagbtn quick-perf" data-min="1" data-max="99">All</button>
-        <button type="button" class="tagbtn quick-perf" data-min="1" data-max="1">Solo</button>
-        <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
-        <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
-      </div>
-    </fieldset>
+        <fieldset class="filter-panel perf">
+            <legend>Number of Performers</legend>
+            <div>
+                <div class="hstack">
+                    <input id="minPerf" type="number" min="0" placeholder="min" style="width:5rem">
+                    <input id="maxPerf" type="number" min="0" placeholder="max" style="width:5rem">
+                </div>
+                <div class="hstack" style="margin-top: 0.5rem;">
+                    <button type="button" class="tagbtn quick-perf" data-min="1" data-max="99">All</button>
+                    <button type="button" class="tagbtn quick-perf" data-min="1" data-max="1">Solo</button>
+                    <button type="button" class="tagbtn quick-perf" data-min="2" data-max="2">Duo</button>
+                    <button type="button" class="tagbtn quick-perf" data-min="3" data-max="99">Group</button>
+                </div>
+            </div>
+        </fieldset>
 
-    <fieldset class="filter-panel ori">
-      <legend>Orientation</legend>
-      <div class="hstack" id="oriGroup">
-        <button type="button" class="tagbtn" data-ori="Gay">Gay</button>
-        <button type="button" class="tagbtn" data-ori="Straight">Straight</button>
-        <button type="button" class="tagbtn" data-ori="Bi">Bi</button>
-        <button type="button" class="tagbtn" data-ori="FtM Trans">FtM Trans</button>
-        <button type="button" class="tagbtn" data-ori="MtF Trans">MtF Trans</button>
-      </div>
-    </fieldset>
+        <fieldset class="filter-panel ori">
+            <legend>Orientation</legend>
+            <div>
+                <div class="hstack" id="oriGroup">
+                    <button type="button" class="tagbtn" data-ori="Gay">Gay</button>
+                    <button type="button" class="tagbtn" data-ori="Straight">Straight</button>
+                    <button type="button" class="tagbtn" data-ori="Bi">Bi</button>
+                    <button type="button" class="tagbtn" data-ori="FtM Trans">FtM Trans</button>
+                    <button type="button" class="tagbtn" data-ori="MtF Trans">MtF Trans</button>
+                </div>
+            </div>
+        </fieldset>
 
-<fieldset class="filter-panel src">
-  <legend>
-    <span>Source type</span>
-  </legend>
-  <legend class="legend-toggle">
-    <label class="toggle-switch" title="Switch filter logic">
-      <span class="label-or">OR</span>
-      <input type="checkbox" id="sourceLogicToggle">
-      <span class="slider"></span>
-      <span class="label-and">AND</span>
-    </label>
-  </legend>
+        <fieldset class="filter-panel src">
+            <legend>
+                <span>Source Type</span>
+                <div class="logic-toggle" id="sourceLogicToggle">
+                    <button type="button" data-logic="OR" class="active">OR</button>
+                    <button type="button" data-logic="AND">AND</button>
+                </div>
+            </legend>
+            <div>
+                <div class="hstack" id="srcGroup">
+                    <button type="button" class="tagbtn" data-src="Studio">Studio</button>
+                    <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
+                    <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
+                    <button type="button" class="tagbtn" data-src="Vintage">Vintage</button>
+                    <button type="button" class="tagbtn" data-src="Webcam">Webcam</button>
+                    <button type="button" class="tagbtn" data-src="Spycam">Spycam</button>
+                    <button type="button" class="tagbtn" data-src="CCTV">CCTV</button>
+                    <button type="button" class="tagbtn" data-src="Selfie">Selfie</button>
+                    <button type="button" class="tagbtn" data-src="Social Media">Social Media</button>
+                    <button type="button" class="tagbtn" data-src="Animated">Animated</button>
+                    <button type="button" class="tagbtn" data-src="Unknown">Unknown</button>
+                </div>
+            </div>
+        </fieldset>
 
-  <div class="hstack" id="srcGroup">
-    <button type="button" class="tagbtn" data-src="Studio">Studio</button>
-    <button type="button" class="tagbtn" data-src="OnlyFans">OnlyFans</button>
-    <button type="button" class="tagbtn" data-src="Amateur">Amateur</button>
-    <button type="button" class="tagbtn" data-src="Vintage">Vintage</button>
-    <button type="button" class="tagbtn" data-src="Webcam">Webcam</button>
-    <button type="button" class="tagbtn" data-src="Spycam">Spycam</button>
-    <button type="button" class="tagbtn" data-src="CCTV">CCTV</button>
-    <button type="button" class="tagbtn" data-src="Selfie">Selfie</button>
-    <button type="button" class="tagbtn" data-src="Social Media">Social Media</button>
-    <button type="button" class="tagbtn" data-src="Animated">Animated</button>
-    <button type="button" class="tagbtn" data-src="Unknown">Unknown</button>
-  </div>
-</fieldset>
+        <fieldset class="filter-panel actions">
+            <legend>Actions</legend>
+            <div>
+                <div class="hstack search-wrapper">
+                    <input id="searchBox" type="text" placeholder="Search...">
+                </div>
+                <div class="sort-control">
+                    <label>Sort</label>
+                    <select id="sortSel">
+                        <option value="updated_desc">Updated (newest)</option>
+                        <option value="updated_asc">Updated (oldest)</option>
+                        <option value="size_desc">Size (largest)</option>
+                        <option value="size_asc">Size (smallest)</option>
+                        <option value="length_desc">Length (longest)</option>
+                        <option value="length_asc">Length (shortest)</option>
+                        <option value="year_desc">Year (newest)</option>
+                        <option value="year_asc">Year (oldest)</option>
+                    </select>
+                </div>
+                <div class="hstack" style="margin-top:1rem; justify-content: space-between;">
+                    <button id="resetAll" class="btn ghost small" type="button" title="Clear all filters">❌ Clear</button>
+                    <button id="randomBtn" class="btn ghost small" type="button" title="Feeling Lucky">🔀 Random</button>
+                </div>
+            </div>
+        </fieldset>
 
-    <fieldset class="filter-panel actions">
-      <legend>Actions</legend>
-      <div class="hstack">
-          <input id="searchBox" type="text" placeholder="Search..." style="flex:1 1 auto;">
-          <button id="clearSearch" class="btn ghost" type="button" title="Clear">×</button>
-      </div>
-      <div class="sort-control">
-          <label>Sort</label>
-          <select id="sortSel" style="margin-top:2px;">
-            <option value="updated_desc">Updated (newest)</option>
-            <option value="updated_asc">Updated (oldest)</option>
-            <option value="size_desc">Size (largest)</option>
-            <option value="size_asc">Size (smallest)</option>
-            <option value="length_desc">Length (longest)</option>
-            <option value="length_asc">Length (shortest)</option>
-            <option value="year_desc">Year (newest)</option>
-            <option value="year_asc">Year (oldest)</option>
-          </select>
-      </div>
-      <div class="hstack" style="margin-top:2em;">
-          <button id="resetAll" class="btn ghost" type="button">Remove all filters</button>
-      </div>
-  </fieldset>
-
-  </div>
-</div>
+    </div>
+</details>
 
 <div id="scopeBar" class="hstack" style="margin:4px 0 10px 0;"></div>
 
 <div class="hstack" style="justify-content:space-between; margin:10px 0;">
-  <div><b id="totalCount">0</b> total</div>
-  <div class="muted">Showing <span id="shownCount">0</span> of 36 per page</div>
+    <div><b id="totalCount">0</b> total</div>
+    <div class="muted">Showing <span id="shownCount">0</span> of 36 per page</div>
 </div>
 
 <div id="grid" class="library-grid"></div>
 
 <div style="margin-top:12px;">
-  <button id="loadMore" class="btn">Load more</button>
-  <span id="status" class="muted" style="margin-left:.5rem;"></span>
+    <button id="loadMore" class="btn">Load more</button>
+    <span id="status" class="muted" style="margin-left:.5rem;"></span>
 </div>
 
 <script>
@@ -191,6 +199,7 @@
       Filename: it.Filename ?? it.filename,
       SizeHuman: it.SizeHuman ?? it.sizeHuman,
       LengthHuman: it.LengthHuman ?? it.lengthHuman,
+      LengthSeconds: it.LengthSeconds ?? it.lengthSeconds,
       Width: it.Width ?? it.width,
       Height: it.Height ?? it.height,
       Year: it.Year ?? it.year,
@@ -292,7 +301,6 @@
     chip.className = "chip chip--flex folder";
     chip.title = dir;
     const breakable = escapeHtml(dir).replace(/([\\/])/g, '$1&#8203;');
-
     chip.innerHTML =
       `📁 <span class="path">${breakable}</span>` +
       (recursive ? " (all subfolders)" : "") +
@@ -306,12 +314,8 @@
   }
 
   // ---- fetch ----
-  async function fetchPage(append=false){
-    $("#status").textContent = "loading…";
-    $("#loadMore").disabled = true;
+  function getActiveFilterParams() {
     const params = new URLSearchParams();
-    params.set("skip", String(skip));
-    params.set("take", String(TAKE));
     params.set("sourceLogic", sourceLogic);
 
     const q = ($("#searchBox").value ?? "").trim();
@@ -324,13 +328,22 @@
     if (minP) params.set("minPerformers", minP);
     if (maxP) params.set("maxPerformers", maxP);
 
-    params.set("sort", $("#sortSel").value);
-
     const { dir, recursive } = getFolderFilterFromUrl();
     if (dir) {
-      params.set("dir", dir);
-      params.set("recursive", recursive ? "true" : "false");
+        params.set("dir", dir);
+        params.set("recursive", recursive ? "true" : "false");
     }
+    return params;
+  }
+
+  async function fetchPage(append=false){
+    $("#status").textContent = "loading…";
+    $("#loadMore").disabled = true;
+
+    const params = getActiveFilterParams();
+    params.set("skip", String(skip));
+    params.set("take", String(TAKE));
+    params.set("sort", $("#sortSel").value);
 
     const url = `/api/media/browse?${params.toString()}`;
     try {
@@ -391,14 +404,38 @@
     renderScopeBar();
     reload(false);
 
-    if (sourceLogic === "AND") {
-      sourceLogicToggle.checked = true;
-    }
+    const toolbar = document.querySelector('.library-toolbar');
+    const summaryText = document.querySelector('.summary-text');
 
-    sourceLogicToggle.addEventListener("change", () => {
-      sourceLogic = sourceLogicToggle.checked ? "AND" : "OR";
-      localStorage.setItem(LS_KEY_SRC_LOGIC, sourceLogic);
-      reload();
+      if (toolbar && summaryText) {
+          // Set initial state from localStorage if you want it to be remembered
+          const isToolbarOpen = localStorage.getItem('vi_toolbar_open') !== 'false';
+          toolbar.open = isToolbarOpen;
+          summaryText.textContent = isToolbarOpen ? 'Hide Filters' : 'Show Filters';
+
+          toolbar.addEventListener('toggle', () => {
+              const isOpen = toolbar.open;
+              summaryText.textContent = isOpen ? 'Hide Filters' : 'Show Filters';
+              localStorage.setItem('vi_toolbar_open', isOpen);
+          });
+      }
+
+    // Initialize the new toggle
+    $$('#sourceLogicToggle button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.logic === sourceLogic);
+    });
+
+    sourceLogicToggle.addEventListener("click", (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        
+        sourceLogic = btn.dataset.logic;
+        localStorage.setItem(LS_KEY_SRC_LOGIC, sourceLogic);
+        
+        $$('#sourceLogicToggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        reload();
     });
 
     $("#oriGroup").addEventListener("click", (e)=>{
@@ -415,6 +452,27 @@
       if (btn.classList.contains("on")) { btn.classList.remove("on"); srcSel.delete(v); }
       else { btn.classList.add("on"); srcSel.add(v); }
       reload();
+    });
+
+    $("#randomBtn").addEventListener("click", async () => {
+        const params = getActiveFilterParams();
+        params.set("random", "1");
+
+        try {
+            const res = await fetch(`/api/media/browse?${params.toString()}`);
+            if (!res.ok) {
+                if (res.status === 404) {
+                    throw new Error("No files match the current filters.");
+                }
+                throw new Error("Could not find a random file.");
+            }
+            const data = await res.json();
+            if (data && data.id) {
+                window.location.href = `/media/${data.id}`;
+            }
+        } catch (e) {
+            alert(e.message || "An error occurred.");
+        }
     });
 
     $("#grid").addEventListener("click", (e)=>{
