@@ -2,77 +2,119 @@
 @model VideoIndex.Web.Pages.Scan.IndexModel
 
 @{
-    ViewData["Title"] = "Live Scan";
+    ViewData["Title"] = "Admin & Features";
 }
 
 @await Html.PartialAsync("_TopNav")
 
 <div class="scan-page">
-    <h1>Live Scan</h1>
+    <h1>@ViewData["Title"]</h1>
 
-    <div class="row">
-        <label for="rootSelect">Root:</label>
-        <select id="rootSelect">
-            @foreach (var r in Model.Roots)
-            {
-                <option value="@r.Id">@r.Name (@r.Path)</option>
-            }
-        </select>
-        <button id="startBtn" class="btn primary">Start Scan</button>
-        <button id="stopBtn" class="btn" style="display: none; background-color:#c62828;">Stop Scan</button>
-        <button id="exportErrorsBtn" class="btn ghost" style="display: none;">Export Errors</button>
-        <span id="status" class="muted">idle</span>
+    <div class="log-container">
+        <div class="row" style="padding: 0 0 1rem;">
+            <progress id="prog" value="0" max="100" style="width: 100%;"></progress>
+            <span id="counts" class="muted"></span>
+        </div>
+        <pre id="log"></pre>
     </div>
 
-    <div class="row" style="width:100%;">
-        <progress id="prog" value="0" max="100" style="width: 360px;"></progress>
-        <span id="counts" class="muted"></span>
-    </div>
-
-    <pre id="log"></pre>
-
-    <details class="edit-panel" style="margin-top: 1rem;">
-        <summary><strong class="summary-text">Admin & Advanced Options</strong></summary>
-        <div class="edit-body">
-            <div class="row">
-                <label class="hstack" style="font-weight:normal; cursor:pointer;">
-                    <input id="newFilesOnly" type="checkbox" checked />
-                    <span>Scan new files only (fast)</span>
-                </label>
-                <label class="hstack" style="font-weight:normal; cursor:pointer;">
-                    <input id="autoTag" type="checkbox" checked />
-                    <span>Enable auto-tagging</span>
-                </label>
-            </div>
-            <div class="row">
-                <label class="hstack" style="font-weight:normal; cursor:pointer;">
-                    <input id="thumbs" type="checkbox" checked />
-                    <span>Generate thumbnails</span>
-                </label>
-                <label class="hstack" style="font-weight:normal; cursor:pointer;">
-                    <input id="regenAll" type="checkbox" />
-                    <span>Regenerate ALL thumbnails (slow)</span>
-                </label>
-            </div>
-            <div class="row">
-                <div class="field hstack">
-                    <label for="workers">Workers:</label>
-                    <input id="workers" type="number" value="8" min="1" max="24" />
+    <div class="admin-container">
+        
+        <div class="admin-main">
+            <div class="admin-panel">
+                <div class="admin-panel__header">
+                    ⚡️ Live Indexing Scan
+                </div>
+                <div class="admin-panel__body">
+                    <div class="field">
+                        <label for="rootSelect">Root:</label>
+                        <select id="rootSelect">
+                            @foreach (var r in Model.Roots)
+                            {
+                                <option value="@r.Id">@r.Name (@r.Path)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="workers">Workers:</label>
+                        <input id="workers" type="number" value="8" min="1" max="24" style="width: 6rem;"/>
+                    </div>
+                    <hr/>
+                    <div class="field">
+                        <label class="hstack" style="font-weight:normal; cursor:pointer;">
+                            <input id="newFilesOnly" type="checkbox" checked />
+                            <span>Scan new files only (fast)</span>
+                        </label>
+                    </div>
+                    <div class="field">
+                        <label class="hstack" style="font-weight:normal; cursor:pointer;">
+                            <input id="autoTag" type="checkbox" checked />
+                            <span>Enable auto-tagging</span>
+                        </label>
+                    </div>
+                    <div class="field">
+                        <label class="hstack" style="font-weight:normal; cursor:pointer;">
+                            <input id="thumbs" type="checkbox" checked />
+                            <span>Generate thumbnails during scan</span>
+                        </label>
+                    </div>
+                    <div class="field">
+                        <label class="hstack" style="font-weight:normal; cursor:pointer;">
+                            <input id="regenAll" type="checkbox" />
+                            <span>Regenerate ALL thumbnails (slow)</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="admin-panel__footer">
+                    <span id="status" class="muted">idle</span>
+                    <button id="startBtn" class="btn primary">Start Scan</button>
+                    <button id="stopBtn" class="btn" style="display: none; background-color:#c62828;">Stop Scan</button>
                 </div>
             </div>
-            <hr style="border: 0; border-top: 1px solid #ddd; margin: 1rem 0;" />
-            <div class="row">
-                <button id="generateMissingThumbsBtn" class="btn ghost">Generate Missing Thumbnails</button>
-                <button id="cleanupTagsBtn" class="btn ghost">Cleanup 'x-auto-tagged'</button>
-                <span id="adminStatus" class="muted"></span>
+
+            <div class="admin-panel">
+                <div class="admin-panel__header">
+                    ♊️ Duplicate File Finder
+                </div>
+                <div class="admin-panel__body">
+                    <p class="muted" style="margin-top:0;">Find files with identical content (based on SHA256 hash).</p>
+                    <div id="dupesResult"></div>
+                </div>
+                <div class="admin-panel__footer">
+                    <label class="hstack" style="font-weight:normal; margin-right: auto; cursor:pointer;">
+                        <input id="deleteDupesFromDisk" type="checkbox" />
+                        <span>Delete files from disk</span>
+                    </label>
+                    <span id="dupesStatus" class="muted"></span>
+                    <button id="findDupesBtn" class="btn ghost">Find Duplicates</button>
+                    <button id="deleteSelectedDupesBtn" class="btn delete" style="display: none;">Delete Selected</button>
+                </div>
             </div>
         </div>
-    </details>
+
+        <div class="admin-sidebar">
+            <div class="admin-panel">
+                <div class="admin-panel__header">
+                    🛠️ Maintenance Tools
+                </div>
+                <div class="admin-panel__body">
+                    <p class="muted" style="margin-top:0;">Run one-off maintenance and cleanup tasks.</p>
+                </div>
+                <div class="admin-panel__footer">
+                    <span id="utilStatus" class="muted"></span>
+                    <button id="generateMissingThumbsBtn" class="btn ghost">Generate Missing Thumbs</button>
+                    <button id="cleanupTagsBtn" class="btn ghost">Cleanup 'x-auto-tagged'</button>
+                    <button id="exportErrorsBtn" class="btn ghost" style="display: none;">Export Errors</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://unpkg.com/%40microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
 <script>
     const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
     const logEl = $("#log");
     const statusEl = $("#status");
     const countsEl = $("#counts");
@@ -86,13 +128,139 @@
     const workersInput = $("#workers");
     const generateMissingThumbsBtn = $("#generateMissingThumbsBtn");
     const cleanupTagsBtn = $("#cleanupTagsBtn");
-    const adminStatus = $("#adminStatus");
+    const utilStatus = $("#utilStatus");
     const exportErrorsBtn = $("#exportErrorsBtn");
+    const findDupesBtn = $("#findDupesBtn");
+    const dupesResult = $("#dupesResult");
+    const dupesStatus = $("#dupesStatus");
+    const deleteSelectedBtn = $("#deleteSelectedDupesBtn");
+    const deleteFromDiskCheck = $("#deleteDupesFromDisk");
 
     let currentScanId = null;
     let connection = null;
     let errorLog = [];
 
+    function log(msg, cls = "") { /* ... (no change) ... */ }
+    function setStatus(txt) { /* ... (no change) ... */ }
+    function resetUiState() { /* ... (no change) ... */ }
+    function updateOptionStates(changedInput) { /* ... (no change) ... */ }
+
+    // --- Event Listeners ---
+    newFilesOnlyCheck.addEventListener('change', () => updateOptionStates(newFilesOnlyCheck));
+    regenAllCheck.addEventListener('change', () => updateOptionStates(regenAllCheck));
+    startBtn.addEventListener("click", async () => { /* ... (no change) ... */ });
+    stopBtn.addEventListener("click", async () => { /* ... (no change) ... */ });
+    generateMissingThumbsBtn.addEventListener("click", async () => { /* ... (no change) ... */ });
+    exportErrorsBtn.addEventListener("click", () => { /* ... (no change) ... */ });
+    cleanupTagsBtn.addEventListener("click", async () => { /* ... (no change) ... */ });
+
+    findDupesBtn.addEventListener("click", async () => {
+        dupesStatus.textContent = "Finding duplicates...";
+        findDupesBtn.disabled = true;
+        deleteSelectedBtn.style.display = 'none';
+        dupesResult.innerHTML = "";
+
+        try {
+            const resp = await fetch('/api/media/duplicates');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+
+            if (data.length === 0) {
+                dupesResult.innerHTML = `<p class="muted">No duplicate files found.</p>`;
+                dupesStatus.textContent = "Scan complete.";
+                return;
+            }
+
+            dupesStatus.textContent = `Found ${data.length} sets of duplicates.`;
+            renderDupes(data);
+            deleteSelectedBtn.style.display = 'inline-flex';
+
+        } catch (e) {
+            dupesStatus.textContent = `Error: ${e.message}`;
+        } finally {
+            findDupesBtn.disabled = false;
+        }
+    });
+    
+    function renderDupes(data) {
+        dupesResult.innerHTML = data.map(group => `
+            <div class="dupe-group" data-sha="${group.sha256}">
+                <div class="dupe-group__header">
+                    ${group.count} files (${group.sizeHuman}) - SHA: ${group.sha256.substring(0, 12)}...
+                </div>
+                <div class="dupe-group__files">
+                    ${group.files.map(file => `
+                        <div class="dupe-group__file" data-id="${file.id}">
+                            <input type="checkbox" class="dupe-checkbox" data-id="${file.id}" />
+                            <img class="dupe-group__thumb" src="/api/media/${file.id}/thumb" alt="thumbnail" loading="lazy" />
+                            <div class="dupe-group__file-path">${file.path}</div>
+                            </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    deleteSelectedBtn.addEventListener("click", async () => {
+        const checkedBoxes = $$('.dupe-checkbox:checked');
+        const idsToDelete = checkedBoxes.map(cb => parseInt(cb.dataset.id, 10));
+
+        if (idsToDelete.length === 0) {
+            alert("No files selected to delete.");
+            return;
+        }
+
+        const deleteFromDisk = deleteFromDiskCheck.checked;
+        let confirmMessage = `Are you sure you want to delete the database records for ${idsToDelete.length} selected files?`;
+        if (deleteFromDisk) {
+            confirmMessage += "\n\nWARNING: You have also chosen to permanently delete the files from the disk. This action cannot be undone.";
+        }
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        deleteSelectedBtn.disabled = true;
+        dupesStatus.textContent = `Deleting ${idsToDelete.length} files...`;
+
+        try {
+            const resp = await fetch('/api/media/batch-delete', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: idsToDelete, deleteFile: deleteFromDisk })
+            });
+
+            if (!resp.ok) {
+                const errorText = await resp.text();
+                throw new Error(`Failed to delete: ${errorText}`);
+            }
+
+            const result = await resp.json();
+            dupesStatus.textContent = `Successfully deleted ${result.deletedCount} files.`;
+
+            // Remove deleted items from the UI
+            result.ids.forEach(id => {
+                const row = $(`.dupe-group__file[data-id="${id}"]`);
+                if (row) row.remove();
+            });
+
+            // Clean up empty groups
+            $$('.dupe-group').forEach(group => {
+                if (group.querySelectorAll('.dupe-group__file').length === 0) {
+                    group.remove();
+                }
+            });
+
+        } catch (err) {
+            alert(err.message);
+            dupesStatus.textContent = "An error occurred.";
+        } finally {
+            deleteSelectedBtn.disabled = false;
+        }
+    });
+
+    // --- Helper Functions (no changes below this line) ---
+    // log, setStatus, resetUiState, updateOptionStates, and all scan-related listeners
     function log(msg, cls = "") {
         const time = new Date().toLocaleTimeString();
         const line = `[${time}] ${msg}\n`;
@@ -102,55 +270,37 @@
         logEl.appendChild(span);
         logEl.scrollTop = logEl.scrollHeight;
     }
-
-    function setStatus(txt) {
-        statusEl.textContent = txt;
-    }
-
+    function setStatus(txt) { statusEl.textContent = txt; }
     function resetUiState() {
         startBtn.disabled = false;
         generateMissingThumbsBtn.disabled = false;
         stopBtn.style.display = 'none';
         stopBtn.disabled = false;
-        if(connection) {
-            connection.stop();
-            connection = null;
-        }
+        if(connection) { connection.stop(); connection = null; }
         currentScanId = null;
-        if (errorLog.length === 0) {
-            exportErrorsBtn.style.display = 'none';
+        if (errorLog.length > 0) {
+            exportErrorsBtn.style.display = 'inline-flex';
         }
     }
-    
-    // --- THIS IS THE CORRECTED LOGIC ---
     function updateOptionStates(changedInput) {
         if (changedInput === regenAllCheck) {
             if (regenAllCheck.checked) {
-                // If regenerating all, force "scan all" and "generate thumbs"
                 newFilesOnlyCheck.checked = false;
                 newFilesOnlyCheck.disabled = true;
                 thumbsCheck.checked = true;
                 thumbsCheck.disabled = true;
             } else {
-                // If turning off regen, re-enable the other options
                 newFilesOnlyCheck.disabled = false;
                 thumbsCheck.disabled = false;
             }
         }
-
         if (changedInput === newFilesOnlyCheck) {
-            // "New files only" and "Regen all" are mutually exclusive
             regenAllCheck.disabled = newFilesOnlyCheck.checked;
-             if (newFilesOnlyCheck.checked) {
+            if (newFilesOnlyCheck.checked) {
                 regenAllCheck.checked = false;
             }
         }
     }
-
-    newFilesOnlyCheck.addEventListener('change', () => updateOptionStates(newFilesOnlyCheck));
-    regenAllCheck.addEventListener('change', () => updateOptionStates(regenAllCheck));
-    // --- END OF CORRECTION ---
-
     startBtn.addEventListener("click", async () => {
         startBtn.disabled = true;
         generateMissingThumbsBtn.disabled = true;
@@ -159,20 +309,12 @@
         exportErrorsBtn.style.display = 'none';
         errorLog = [];
         setStatus("connecting…");
-
         const rootId = parseInt($("#rootSelect").value, 10);
         currentScanId = crypto.randomUUID();
-
-        connection = new signalR.HubConnectionBuilder()
-            .withUrl("/hubs/scan")
-            .withAutomaticReconnect()
-            .build();
-
+        connection = new signalR.HubConnectionBuilder().withUrl("/hubs/scan").withAutomaticReconnect().build();
         let totalFiles = 0;
-
         connection.on("progress", evt => {
-            // This is the main change: Check the event kind first!
-            switch (evt.kind) {
+           switch (evt.kind) {
                 case "started":
                     totalFiles = evt.totals.files || 0;
                     progEl.max = Math.max(totalFiles, 1);
@@ -193,8 +335,8 @@
                 case "indexError":
                     const errorMsg = `File: ${evt.file} — Error: ${evt.error}`;
                     log(errorMsg, "err");
-                    errorLog.push(errorMsg); // Capture the error
-                    exportErrorsBtn.style.display = 'inline-flex'; // Show the button
+                    errorLog.push(errorMsg);
+                    exportErrorsBtn.style.display = 'inline-flex';
                     break;
                 case "cancelled":
                     setStatus("stopped");
@@ -203,20 +345,11 @@
                     break;
             }
         });
-
         try {
             await connection.start();
             await connection.invoke("JoinScan", currentScanId);
             log(`Joined scan channel ${currentScanId}`, "muted");
-
-            const params = new URLSearchParams({
-                scanId: currentScanId,
-                newFilesOnly: newFilesOnlyCheck.checked,
-                autoTag: autoTagCheck.checked,
-                thumbs: thumbsCheck.checked,
-                regenAll: regenAllCheck.checked,
-                dop: workersInput.value
-            });
+            const params = new URLSearchParams({ scanId: currentScanId, newFilesOnly: newFilesOnlyCheck.checked, autoTag: autoTagCheck.checked, thumbs: thumbsCheck.checked, regenAll: regenAllCheck.checked, dop: workersInput.value });
             const url = `/api/roots/${rootId}/scan-live?${params.toString()}`;
             const resp = await fetch(url, { method: "POST" });
             if (!resp.ok) {
@@ -231,34 +364,28 @@
             resetUiState();
         }
     });
-
     stopBtn.addEventListener("click", async () => {
         if (!currentScanId) return;
         setStatus("stopping…");
         stopBtn.disabled = true;
         await fetch(`/api/scan/${currentScanId}/stop`, { method: "POST" });
     });
-
     generateMissingThumbsBtn.addEventListener("click", async () => {
-        adminStatus.textContent = "Requesting thumbnail generation...";
+        utilStatus.textContent = "Requesting thumbnail generation...";
         startBtn.disabled = true;
         generateMissingThumbsBtn.disabled = true;
         logEl.innerHTML = "";
-
         const resp = await fetch('/api/media/generate-missing-thumbnails', { method: 'POST' });
         if (resp.ok) {
             const data = await resp.json();
-            adminStatus.textContent = `Task started.`;
+            utilStatus.textContent = `Task started.`;
             currentScanId = data.scanId;
             connection = new signalR.HubConnectionBuilder().withUrl("/hubs/scan").build();
-            
             connection.on("progress", evt => {
                  let { processed = 0, thumbsMade = 0 } = evt;
                  let total = evt.totals?.files || '?';
-                 
                  progEl.value = processed;
                  countsEl.textContent = `${processed} / ${total} | Thumbs: ${thumbsMade}`;
-                 
                  switch(evt.kind) {
                      case "started":
                         progEl.max = Math.max(total, 1);
@@ -266,28 +393,26 @@
                         break;
                      case "completed":
                         log(`Thumbnail generation complete.`, "ok");
-                        adminStatus.textContent = `Thumbnail generation completed.`;
+                        utilStatus.textContent = `Thumbnail generation completed.`;
                         resetUiState();
                         break;
                      case "cancelled":
                         log(`Thumbnail generation stopped by user.`, "warn");
-                        adminStatus.textContent = `Thumbnail generation stopped.`;
+                        utilStatus.textContent = `Thumbnail generation stopped.`;
                         resetUiState();
                         break;
                  }
             });
-
             await connection.start();
             await connection.invoke("JoinScan", data.scanId);
         } else {
-            adminStatus.textContent = "Failed to start task.";
+            utilStatus.textContent = "Failed to start task.";
             startBtn.disabled = false;
             generateMissingThumbsBtn.disabled = false;
         }
     });
     exportErrorsBtn.addEventListener("click", () => {
         if (errorLog.length === 0) return;
-
         const fileContent = errorLog.join("\r\n");
         const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
         const url = URL.createObjectURL(blob);
@@ -301,22 +426,20 @@
         URL.revokeObjectURL(url);
     });
     cleanupTagsBtn.addEventListener("click", async () => {
-          adminStatus.textContent = "Cleaning up tags...";
+          utilStatus.textContent = "Cleaning up tags...";
           cleanupTagsBtn.disabled = true;
-
           const resp = await fetch('/api/autotag/cleanup', { method: 'POST' });
           if (resp.ok) {
               const data = await resp.json();
               const message = `Cleanup complete. Scanned ${data.filesScanned} files and removed tag from ${data.filesCleaned}.`;
-              adminStatus.textContent = message;
-              log(message, "ok");
+              utilStatus.textContent = message;
           } else {
               const errorText = await resp.text();
-              adminStatus.textContent = "Failed to run cleanup task.";
-              log(`Cleanup task failed: ${errorText}`, "err");
+              utilStatus.textContent = "Failed to run cleanup task.";
           }
           cleanupTagsBtn.disabled = false;
-});
+    });
+
     // Initialize UI state on page load
     updateOptionStates();
 </script>

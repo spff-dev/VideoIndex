@@ -75,9 +75,7 @@
       </div>
     </div>
      <div class="autotag-box">
-      <div class="muted" style="margin-bottom:.25rem;">Try to infer tags from filename and folder structure.</div>
-      <button id="autoTagBtn" type="button" class="btn">Auto-tag this media</button>
-      <div id="autoTagStatus" class="muted" style="margin-top:.25rem;"></div>
+      <div><button id="autoTagBtn" type="button" class="btn">Auto-tag</button><span id="autoTagStatus" class="muted"></span></div>
     </div>
   </div>
 
@@ -343,19 +341,36 @@
     $$("#oriGroup .tagbtn").forEach(btn=> btn.classList.toggle("on", orientationSel.has(btn.getAttribute("data-ori"))));
     $$("#srcGroup .tagbtn").forEach(btn=> btn.classList.toggle("on", sourceTypesSel.has(btn.getAttribute("data-src"))));
   }
-  function renderOtherChips(){
-    const holder = $("#otherChips"); holder.innerHTML="";
-    const sorted = otherTagsArr.slice().sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
-    sorted.forEach(t=>{
-      const s = document.createElement("span"); s.className="chip chip--flex other"; s.textContent=t;
-      const x = document.createElement("button"); x.type="button"; x.className="x"; x.setAttribute("data-remove-other",t); x.textContent="×";
-      s.appendChild(x); holder.appendChild(s);
+  function renderOtherChips() {
+    const holder = $("#otherChips");
+    holder.innerHTML = "";
+    const sorted = otherTagsArr.slice().sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    sorted.forEach(t => {
+        const s = document.createElement("span");
+        
+        // Check if the tag is 'x-auto-tagged'
+        if (t.toLowerCase() === 'x-auto-tagged') {
+            // Apply only the grey style
+            s.className = "chip chip--flex autotagged";
+        } else {
+            // Apply the default purple style for other tags
+            s.className = "chip chip--flex other";
+        }
+
+        s.textContent = t;
+        const x = document.createElement("button");
+        x.type = "button";
+        x.className = "x";
+        x.setAttribute("data-remove-other", t);
+        x.textContent = "×";
+        s.appendChild(x);
+        holder.appendChild(s);
     });
-  }
+}
   function renderPerformerChips(){
     const holder = $("#performerChips"); holder.innerHTML="";
     performersArr.forEach(t=>{
-      const s = document.createElement("span"); s.className="chip chip--flex"; s.textContent=t;
+      const s = document.createElement("span"); s.className="chip chip--flex pname"; s.textContent=t;
       const x = document.createElement("button"); x.type="button"; x.className="x"; x.setAttribute("data-remove-perf",t); x.textContent="×";
       s.appendChild(x); holder.appendChild(s);
     });
@@ -382,7 +397,7 @@
     if (pcVal === 1) pcHref = `/library?minPerformers=1&maxPerformers=1`;
     else if (pcVal === 2) pcHref = `/library?minPerformers=2&maxPerformers=2`;
     else if (pcVal >= 3) pcHref = `/library?minPerformers=3&maxPerformers=99`;
-    const pcChip = makeFilterChip(pcText, "badge", pcHref || "#", "Filter by performer count");
+    const pcChip = makeFilterChip(pcText, "badge perf", pcHref || "#", "Filter by performer count");
     wrap.appendChild(pcChip);
 
     // 2) Orientation tags
@@ -414,9 +429,11 @@
       wrap.appendChild(makeFilterChip(name, "pname", `/library?q=${encodeURIComponent(name)}`, `Filter by performer ${name}`));
     });
     // 7) Other tags (multi)
-    const otherSorted = otherTagsArr.slice().sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+    const otherSorted = otherTagsArr.slice().sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
     otherSorted.forEach(tag => {
-      wrap.appendChild(makeFilterChip(tag, "other", `/library?q=${encodeURIComponent(tag)}`, `Filter by tag ${tag}`));
+        // Check if the tag is 'x-auto-tagged' and choose the class accordingly
+        const chipClass = tag.toLowerCase() === 'x-auto-tagged' ? 'autotagged' : 'other';
+        wrap.appendChild(makeFilterChip(tag, chipClass, `/library?q=${encodeURIComponent(tag)}`, `Filter by tag ${tag}`));
     });
   }
 

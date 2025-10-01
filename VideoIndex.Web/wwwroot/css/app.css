@@ -180,6 +180,36 @@ main.page {
   border-color: #e3e3e3;
   color: #343a40;
 }
+.chip.other {
+  background: #f3e8ff;
+  border-color: #d8b6ff;
+  color: #6f42c1;
+}
+
+.chip.pname {
+  background: #e0f2f1;
+  border-color: #b2dfdb;
+  color: #00796b;
+}
+
+.chip.user {
+  background: #fff0f5;
+  border-color: #ffd6e5;
+  color: #c51162;
+}
+
+.chip.studio {
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+  color: #424242;
+}
+
+.chip.autotagged {
+  background-color: #e9ecef; /* A slightly darker grey */
+  border-color: #ced4da;
+  color: #495057;
+}
+
 .chip .x {
   background: transparent;
   border: none;
@@ -225,7 +255,7 @@ main.page {
 .library-toolbar-container {
   background-color: #fff;
   border-radius: 12px;
-  border: 1px solid #dee2e6;
+  border: 2px solid #dee2e6;
   margin-bottom: 1.5rem;
 }
 .library-toolbar {
@@ -282,7 +312,6 @@ main.page {
 }
 .library-grid {
   display: grid;
-  /* --grid-cols will be set by JS. Default to 6. */
   grid-template-columns: repeat(var(--grid-cols, 6), 1fr);
   gap: 1rem;
 }
@@ -531,6 +560,15 @@ details.kv .kv-body {
   outline: 2px solid #1f7a3f;
   outline-offset: 1px;
 }
+.autotag-box {
+  margin-top: 1em;
+}
+
+#autoTagStatus {
+  display: inline-block;
+  margin-left: 2px;
+}
+
 .edit-panel {
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -650,4 +688,115 @@ details.kv .kv-body {
 }
 .scan-page pre span.err::before {
   color: #f85149;
+}
+
+.admin-container {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* Main content takes 2/3, sidebar takes 1/3 */
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: sticky;
+  top: 80px; /* Adjust based on your top nav height */
+}
+
+.admin-panel {
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-panel__header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.admin-panel__body {
+  padding: 1rem;
+  flex-grow: 1;
+}
+
+.admin-panel__body .field {
+  margin-bottom: 0.75rem;
+}
+
+.admin-panel__footer {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e9ecef;
+  background-color: #f8f9fa;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Duplicate Finder Specific Styles */
+#dupesResult {
+  margin-top: 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.dupe-group {
+  margin-bottom: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.dupe-group__header {
+  background-color: #f7f7f7;
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #ddd;
+}
+
+.dupe-group__file {
+  display: grid;
+  grid-template-columns: auto 80px 1fr auto; /* Checkbox, Thumb, Path, Actions */
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+.dupe-group__file:last-child {
+  border-bottom: none;
+}
+
+.dupe-group__thumb {
+  width: 80px;
+  height: 45px;
+  object-fit: cover;
+  background: #1b1b1b;
+  border-radius: 4px;
+}
+
+.dupe-group__file-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.dupe-group__file .btn.delete {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: #fff;
+  padding: 4px 8px;
+  font-size: 0.8rem;
 }
