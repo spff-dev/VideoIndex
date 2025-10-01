@@ -243,8 +243,12 @@
         const oriHtml = (item.OrientationTags || []).map(t => `<span class="chip ori clickable" data-ori="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join(" ");
         const perfHtml = perfBadge ? `<span class="chip badge clickable perf" data-min="${pc}" data-max="${pc}">${perfBadge}</span>` : "";
         const srcHtml = (item.SourceTypes || []).map(t => `<span class="chip src clickable" data-src="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join(" ");
+        
         return `<a class="library-card" href="/media/${item.Id}">
-                    <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
+                    <div class="thumb-container">
+                        <img class="thumb-bg" src="${item.Thumb}" alt="" loading="lazy">
+                        <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
+                    </div>
                     <div class="muted filename">${escapeHtml(item.Filename)}</div>
                     <div class="meta">${statsHtml}</div>
                     <div class="meta">${oriHtml} ${perfHtml} ${srcHtml}</div>

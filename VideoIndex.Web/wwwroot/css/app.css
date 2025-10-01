@@ -328,11 +328,15 @@ main.page {
   min-width: 180px;
 }
 .library-card .thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  aspect-ratio: 1/1;
+  height: 100%;
   object-fit: contain;
-  background: #1b1b1b;
+  background: transparent;
   border-radius: 8px;
+  z-index: 2; /* Sits on top of the blurred background */
 }
 .library-card .filename {
   word-break: break-word;
@@ -479,26 +483,76 @@ fieldset {
   width: 100%;
   border: 1px solid #ddd;
   border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  background: #1b1b1b;
+  transition: aspect-ratio 0.3s ease;
+}
+
+.thumb-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1/1; /* Library card is square */
+  background: #1b1b1b;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.thumb-bg {
+  position: absolute;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  object-fit: cover;
+  filter: blur(10px) brightness(0.8);
+  opacity: 0.9;
+  z-index: 1;
 }
 .player-thumb,
 .player-video {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  aspect-ratio: 16/9;
+  height: 100%;
   object-fit: contain;
-  background: #111;
+  background: transparent;
   border-radius: 8px;
+  z-index: 2;
 }
-.play-overlay {
+
+.player-button-group {
   position: absolute;
   top: 8px;
   right: 8px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0; /* Initially hidden */
+  transition: opacity 0.3s ease;
+}
+
+.player-button-group.visible {
+  opacity: 1; /* Make visible */
+}
+
+.play-overlay,
+.aspect-toggle-btn {
   border: none;
   border-radius: 8px;
-  padding: 8px 10px;
-  background: #222a;
+  padding: 8px;
+  background: rgba(34, 34, 34, 0.65);
   color: #fff;
   cursor: pointer;
+  line-height: 1;
 }
+.play-overlay:hover,
+.aspect-toggle-btn:hover {
+  background: rgba(34, 34, 34, 0.85);
+}
+
 .player-actions {
   display: flex;
   gap: 8px;
@@ -798,4 +852,8 @@ details.kv .kv-body {
   color: #fff;
   padding: 4px 8px;
   font-size: 0.8rem;
+}
+/* === ASPECT RATIO TOGGLE === */
+.player-box.aspect-1-1 {
+  aspect-ratio: 1/1;
 }
