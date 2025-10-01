@@ -282,7 +282,8 @@ main.page {
 }
 .library-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  /* --grid-cols will be set by JS. Default to 6. */
+  grid-template-columns: repeat(var(--grid-cols, 6), 1fr);
   gap: 1rem;
 }
 .library-card {
@@ -295,6 +296,7 @@ main.page {
   gap: 8px;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  min-width: 180px;
 }
 .library-card .thumb {
   width: 100%;
@@ -413,6 +415,24 @@ fieldset {
   color: #343a40;
   opacity: 1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* New container for view options */
+.view-options .field {
+  display: flex;
+  flex-direction: column;
+}
+.view-options label {
+  font-size: 0.85rem;
+  margin-bottom: 2px;
+  color: #555;
+  font-weight: 500;
+}
+.view-options select {
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  width: auto;
 }
 
 /* === PAGE: MEDIA DETAILS (/media/{id}) === */

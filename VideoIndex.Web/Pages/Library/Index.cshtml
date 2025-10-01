@@ -104,9 +104,34 @@
 
 <div id="scopeBar" class="hstack" style="margin:4px 0 10px 0;"></div>
 
-<div class="hstack" style="justify-content:space-between; margin:10px 0;">
-    <div><b id="totalCount">0</b> total</div>
-    <div class="muted">Showing <span id="shownCount">0</span> of 36 per page</div>
+<div class="hstack" style="justify-content:space-between; margin:10px 0; align-items: flex-end;">
+    <div>
+        <div><b id="totalCount">0</b> total</div>
+        <div class="muted">Showing <span id="shownCount">0</span></div>
+    </div>
+    <div class="view-options hstack">
+        <div class="field">
+            <label for="gridCols">Items per row</label>
+            <select id="gridCols">
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6" selected>6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="pageSize">Items per page</label>
+            <select id="pageSize">
+                <option value="12">12</option>
+                <option value="24">24</option>
+                <option value="36" selected>36</option>
+                <option value="48">48</option>
+                <option value="72">72</option>
+            </select>
+        </div>
+    </div>
 </div>
 
 <div id="grid" class="library-grid"></div>
@@ -120,8 +145,10 @@
     const $ = s => document.querySelector(s);
     const $$ = s => Array.from(document.querySelectorAll(s));
 
-    const TAKE = 36;
+    let take = 36;
     const LS_KEY_SRC_LOGIC = "vi_source_logic";
+    const LS_KEY_GRID_COLS = "vi_grid_cols";
+    const LS_KEY_PAGE_SIZE = "vi_page_size";
 
     let srcSel = new Set();
     let oriSel = new Set();
@@ -130,6 +157,13 @@
     let total = 0;
 
     function getParams() { return new URL(location.href).searchParams; }
+
+    function applyGridSize(cols) {
+        const grid = $("#grid");
+        if (grid) {
+            grid.style.setProperty("--grid-cols", cols);
+        }
+    }
 
     function setParams(updates) {
         const u = new URL(location.href);
@@ -219,7 +253,11 @@
 
     function updateCounts(shownAdd) {
         const shown = skip + (shownAdd || 0);
-        $("#shownCount").textContent = Math.min(shown, total);
+        const shownEl = $("#shownCount");
+        if (shownEl) {
+            // Now it also shows the 'take' value
+            shownEl.parentElement.innerHTML = `Showing <span id="shownCount">${Math.min(shown, total)}</span> of ${take} per page`;
+        }
         $("#totalCount").textContent = total;
     }
 
@@ -307,7 +345,7 @@
         $("#loadMore").disabled = true;
         const params = getActiveFilterParams();
         params.set("skip", String(skip));
-        params.set("take", String(TAKE));
+        params.set("take", String(take));
         params.set("sort", $("#sortSel").value);
         try {
             const res = await fetch(`/api/media/browse?${params.toString()}`);
@@ -355,6 +393,34 @@
     document.addEventListener("DOMContentLoaded", () => {
         readFromUrl();
         reload(false);
+
+        const gridColsSelect = $("#gridCols");
+        const pageSizeSelect = $("#pageSize");
+
+        // Load saved settings or use defaults
+        const savedCols = localStorage.getItem(LS_KEY_GRID_COLS) || "6";
+        const savedPageSize = localStorage.getItem(LS_KEY_PAGE_SIZE) || "36";
+
+        // Apply settings
+        gridColsSelect.value = savedCols;
+        pageSizeSelect.value = savedPageSize;
+        take = parseInt(savedPageSize, 10);
+        applyGridSize(savedCols);
+
+        // Add event listeners
+        gridColsSelect.addEventListener("change", () => {
+            const newCols = gridColsSelect.value;
+            localStorage.setItem(LS_KEY_GRID_COLS, newCols);
+            applyGridSize(newCols);
+            // No reload needed as it's just a visual change
+        });
+
+        pageSizeSelect.addEventListener("change", () => {
+            const newPageSize = pageSizeSelect.value;
+            localStorage.setItem(LS_KEY_PAGE_SIZE, newPageSize);
+            take = parseInt(newPageSize, 10);
+            reload(true); // Reload data with new page size
+        });
 
         const sourceLogicToggle = $("#sourceLogicToggle");
         $$('#sourceLogicToggle button').forEach(btn => btn.classList.toggle('active', btn.dataset.logic === sourceLogic));
@@ -412,7 +478,7 @@
         $("#searchBox").addEventListener("input", debounce(() => reload(), 300));
         
         $("#loadMore").addEventListener("click", () => {
-            skip += TAKE;
+            skip += take;
             setParams({ ...Object.fromEntries(getActiveFilterParams()), skip });
             fetchPage(true);
         });
