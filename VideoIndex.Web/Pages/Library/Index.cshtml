@@ -276,7 +276,15 @@
     const tagHtml = tags.length > 0 ? `<div class="meta">${tags.join(" ")}</div>` : "";
 
     // Badge overlay on the thumbnail (not in the title)
-    const favBadge = item.IsFavourite ? `<div class="thumb-badge" title="Favourite">⭐️</div>` : "";
+    const favBadge = `
+  <div class="thumb-badge" title="Favourite">
+    <svg class="star-icon star-filled"
+         style="display: ${item.IsFavourite ? "block" : "none"};"
+         xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 .587l3.668 7.568L24 9.748l-6 5.845L19.336 24 12 19.897 4.664 24 6 15.593l-6-5.845 8.332-1.593L12 .587z"/>
+    </svg>
+  </div>`;
 
     return `<a class="library-card" href="/media/${item.Id}">
                 <div class="thumb-container">
