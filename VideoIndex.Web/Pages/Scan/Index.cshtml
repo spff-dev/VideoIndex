@@ -148,11 +148,6 @@
     // --- Event Listeners ---
     newFilesOnlyCheck.addEventListener('change', () => updateOptionStates(newFilesOnlyCheck));
     regenAllCheck.addEventListener('change', () => updateOptionStates(regenAllCheck));
-    startBtn.addEventListener("click", async () => { /* ... (no change) ... */ });
-    stopBtn.addEventListener("click", async () => { /* ... (no change) ... */ });
-    generateMissingThumbsBtn.addEventListener("click", async () => { /* ... (no change) ... */ });
-    exportErrorsBtn.addEventListener("click", () => { /* ... (no change) ... */ });
-    cleanupTagsBtn.addEventListener("click", async () => { /* ... (no change) ... */ });
 
     findDupesBtn.addEventListener("click", async () => {
         dupesStatus.textContent = "Finding duplicates...";
@@ -320,17 +315,26 @@
                     progEl.max = Math.max(totalFiles, 1);
                     setStatus("running");
                     log(`Scan started on "${evt.root.name}" — found ${totalFiles} files to process.`, "muted");
+                    if (evt.totals.aiEnabled) log(`AI Detection: ENABLED`, "ok");
                     break;
+                case "fileCompleted":
                 case "heartbeat":
                 case "completed":
-                    let { processed = 0, indexed = 0, tagged = 0, thumbsMade = 0, errors = 0 } = evt;
-                    countsEl.textContent = `${processed}/${totalFiles} | Indexed: ${indexed} | Tagged: ${tagged} | Thumbs: ${thumbsMade} | Errors: ${errors}`;
+                    let { processed = 0, indexed = 0, tagged = 0, thumbsMade = 0, thumbsCreated = 0, aiDetected = 0, errors = 0 } = evt;
+                    const thumbCount = thumbsCreated || thumbsMade || 0;
+                    countsEl.textContent = `${processed}/${totalFiles} | Indexed: ${indexed} | Tagged: ${tagged} | AI: ${aiDetected} | Thumbs: ${thumbCount} | Errors: ${errors}`;
                     progEl.value = processed;
                     if (evt.kind === "completed") {
                         setStatus("done");
                         log(`Completed in ${evt.elapsedMs} ms.`, "ok");
                         resetUiState();
                     }
+                    break;
+                case "aiDetection":
+                    log(`✨ AI: ${evt.file} → ${evt.details}`, "ok");
+                    break;
+                case "aiError":
+                    log(`⚠️ AI Error: ${evt.file} — ${evt.error}`, "warn");
                     break;
                 case "indexError":
                     const errorMsg = `File: ${evt.file} — Error: ${evt.error}`;

@@ -994,3 +994,13 @@ details.kv .kv-body {
     0 1px 2px rgba(0, 0, 0, 0.55)
   ); /* subtle lift on busy thumbs */
 }
+/* In app.css */
+.library-card .thumb,
+.library-card .thumb-bg {
+  transition: opacity 0.4s ease-in-out;
+}
+
+.library-card:hover .thumb-container {
+  transform: scale(1.01);
+  transition: transform 0.2s ease-out;
+}

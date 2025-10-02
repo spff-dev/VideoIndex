@@ -1,0 +1,21 @@
+# Python dependencies for Local AI Content Detection
+# All processing is done locally - no data sent to external services
+
+# YOLOv8 for person detection (~50MB model)
+ultralytics>=8.0.0
+
+# OpenCV for video processing
+opencv-python>=4.8.0
+
+# EasyOCR for watermark text extraction (~100MB model)
+easyocr>=1.7.0
+
+# PyTorch (CPU version for privacy - no GPU required)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# NumPy (dependency)
+numpy>=1.24.0
+
+# Pillow for image processing (dependency)
+Pillow>=10.0.0

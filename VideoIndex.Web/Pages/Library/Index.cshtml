@@ -286,10 +286,10 @@
     </svg>
   </div>`;
 
-    return `<a class="library-card" href="/media/${item.Id}">
+    return `<a class="library-card" href="/media/${item.Id}" data-media-id="${item.Id}">
                 <div class="thumb-container">
                     <img class="thumb-bg" src="${item.Thumb}" alt="" loading="lazy">
-                    <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
+                    <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'" data-media-id="${item.Id}">
                     ${favBadge}
                 </div>
                 <div class="title"><span class="title-text">${escapeHtml(titleOrFile)}</span></div>
@@ -297,6 +297,51 @@
                 ${tagHtml}
             </a>`;
 }
+
+    // Hover preview functionality - cycle through thumbnails
+    const hoverIntervals = new Map();
+    
+    function setupHoverPreviews() {
+        const thumbs = $$('.library-card .thumb');
+        
+        thumbs.forEach(img => {
+            const card = img.closest('.library-card');
+            if (!card) return;
+            
+            const mediaId = card.dataset.mediaId;
+            if (!mediaId) return;
+            
+            card.addEventListener('mouseenter', () => {
+                let currentSequence = 0;
+                
+                // Start cycling through thumbnails every 3 seconds
+                const interval = setInterval(() => {
+                    currentSequence = (currentSequence + 1) % 5; // 0-4
+                    const thumbUrl = `/api/media/${mediaId}/thumb?sequence=${currentSequence}`;
+                    img.src = thumbUrl;
+                    const bgImg = card.querySelector('.thumb-bg');
+                    if (bgImg) bgImg.src = thumbUrl;
+                }, 1500);
+                
+                hoverIntervals.set(mediaId, interval);
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                // Clear interval
+                const interval = hoverIntervals.get(mediaId);
+                if (interval) {
+                    clearInterval(interval);
+                    hoverIntervals.delete(mediaId);
+                }
+                
+                // Reset to first thumbnail
+                const resetUrl = `/api/media/${mediaId}/thumb?sequence=0`;
+                img.src = resetUrl;
+                const bgImg = card.querySelector('.thumb-bg');
+                if (bgImg) bgImg.src = resetUrl;
+            });
+        });
+    }
 
 
     function updateCounts(shownAdd) {
@@ -413,6 +458,9 @@
             $("#loadMore").disabled = (skip + (data.items?.length || 0) >= total);
             $("#status").textContent = (skip + (data.items?.length || 0) >= total) ? "end of results" : "";
             updateCounts(data.items?.length);
+            
+            // Setup hover previews for newly loaded cards
+            setupHoverPreviews();
         } catch (e) {
             $("#status").textContent = "error: " + (e.message || e);
         }
@@ -569,4 +617,3 @@
 </script>
 
 @await Html.PartialAsync("_TopNavEnd")
-

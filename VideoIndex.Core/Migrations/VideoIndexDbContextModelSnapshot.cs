@@ -155,14 +155,27 @@ namespace VideoIndex.Core.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTimeOffset>("GeneratedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("INTEGER");
 
                     b.Property<byte[]>("Jpeg")
                         .IsRequired()
                         .HasColumnType("BLOB");
 
                     b.Property<int>("MediaFileId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SequenceNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Width")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");

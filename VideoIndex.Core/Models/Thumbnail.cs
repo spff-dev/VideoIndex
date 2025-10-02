@@ -10,6 +10,13 @@ namespace VideoIndex.Core.Models
         public MediaFile? MediaFile { get; set; } // nav paired in OnModelCreating
 
         public byte[] Jpeg { get; set; } = Array.Empty<byte>();
+
+        // Multi-thumbnail support
+        public int SequenceNumber { get; set; } = 0;  // 0-4 for position in sequence
+        public string Format { get; set; } = "jpeg";  // "jpeg" or "webp"
+        public int Width { get; set; }
+        public int Height { get; set; }
+
         public DateTimeOffset GeneratedAt { get; set; }
     }
 }

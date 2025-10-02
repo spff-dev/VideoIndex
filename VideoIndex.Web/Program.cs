@@ -15,8 +15,13 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using VideoIndex.Core.Data;
 using VideoIndex.Core.Models;
+using VideoIndex.Core.AI;
+using VideoIndex.Core.Thumbnails;
 using VideoIndex.Web.Hubs;
 using System.Text.RegularExpressions;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Webp;
 
 [assembly: SupportedOSPlatform("windows")]
 
@@ -31,6 +36,18 @@ builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
+
+// Ensure database exists and is up to date
+using (var scope = app.Services.CreateScope())
+{
+    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<VideoIndexDbContext>>();
+    await using var db = await dbFactory.CreateDbContextAsync();
+    await db.Database.MigrateAsync(); // Creates database if missing and applies all migrations
+
+    // Enable WAL mode for better concurrent write performance
+    await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+    await db.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout=5000;"); // 5 second timeout for locks
+}
 
 if (!app.Environment.IsDevelopment())
 {
@@ -153,7 +170,7 @@ app.MapGet("/api/roots/{id:int}/scan-dry-run", async (int id, IDbContextFactory<
     return Results.Ok(new { root = new { root.Id, root.Name, root.Path }, discovered = count, sample, elapsedMs = sw.ElapsedMilliseconds });
 });
 
-app.MapPost("/api/roots/{id:int}/scan-live", async (int id, string scanId, bool? newFilesOnly, bool? autoTag, bool? thumbs, bool? regenAll, int? dop, IHubContext<ScanHub> hub, IDbContextFactory<VideoIndexDbContext> dbFactory) =>
+app.MapPost("/api/roots/{id:int}/scan-live", async (int id, string scanId, bool? newFilesOnly, bool? autoTag, bool? thumbs, bool? regenAll, int? dop, IHubContext<ScanHub> hub, IDbContextFactory<VideoIndexDbContext> dbFactory, IConfiguration config) =>
 {
     await using var db0 = await dbFactory.CreateDbContextAsync();
     var root = await db0.ScanRoots.FindAsync(id);
@@ -162,6 +179,15 @@ app.MapPost("/api/roots/{id:int}/scan-live", async (int id, string scanId, bool?
     if (string.IsNullOrWhiteSpace(scanId)) return Results.BadRequest("scanId is required.");
     var cts = new CancellationTokenSource();
     if (!ScanManager.ActiveScans.TryAdd(scanId, cts)) { return Results.Conflict("A scan with this ID is already in progress."); }
+
+    // Initialize AI detector if enabled
+    var aiEnabled = config.GetValue<bool>("AI:Enabled", false);
+    var aiDetector = aiEnabled ? new AIDetector(
+        config.GetValue<string>("AI:PythonPath", "python") ?? "python",
+        config.GetValue<string>("AI:ScriptPath", "AI/ai_detector.py") ?? "AI/ai_detector.py",
+        aiEnabled
+    ) : null;
+
     try
     {
         bool doNewFilesOnly = newFilesOnly.GetValueOrDefault(true), doAutoTag = autoTag.GetValueOrDefault(true); int degree = Math.Clamp(dop ?? Environment.ProcessorCount, 1, 24);
@@ -170,19 +196,154 @@ app.MapPost("/api/roots/{id:int}/scan-live", async (int id, string scanId, bool?
         List<string> filesToProcess;
         if (doNewFilesOnly) { var existingPaths = (await db0.MediaFiles.AsNoTracking().Where(m => m.RootId == id).Select(m => m.Path).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase); filesToProcess = allDiskFiles.Where(f => !existingPaths.Contains(f)).ToList(); }
         else { filesToProcess = allDiskFiles; }
-        int total = filesToProcess.Count, done = 0, indexed = 0, tagged = 0, errors = 0;
-        await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "started", root = new { root.Id, root.Name, root.Path }, totals = new { files = total, dop = degree }, startedAt = DateTimeOffset.UtcNow });
+        int total = filesToProcess.Count, done = 0, indexed = 0, tagged = 0, errors = 0, aiDetected = 0, thumbsCreated = 0;
+        await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "started", root = new { root.Id, root.Name, root.Path }, totals = new { files = total, dop = degree, aiEnabled }, startedAt = DateTimeOffset.UtcNow });
         var sw = Stopwatch.StartNew();
         await Parallel.ForEachAsync(filesToProcess, new ParallelOptions { MaxDegreeOfParallelism = degree, CancellationToken = cts.Token }, async (f, ct) =>
         {
             var (ok, result, err) = await Indexer.IndexOneWithFactoryAsync(dbFactory, f);
-            if (ok) { Interlocked.Increment(ref indexed); if (doAutoTag) { await using var dbTag = await dbFactory.CreateDbContextAsync(); var mediaFile = await dbTag.MediaFiles.FindAsync(((dynamic)result).Id); if (mediaFile != null && AutoTagger.Apply(mediaFile, dryRun: false)) { await dbTag.SaveChangesAsync(ct); Interlocked.Increment(ref tagged); } } }
-            else { Interlocked.Increment(ref errors); await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "indexError", file = Path.GetRelativePath(root.Path, f), error = err }); }
-            var curDone = Interlocked.Increment(ref done);
-            if (curDone % 10 == 0) { await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "heartbeat", processed = curDone, indexed, tagged, errors, elapsedMs = sw.ElapsedMilliseconds }); }
+            if (ok)
+            {
+                Interlocked.Increment(ref indexed);
+                var mediaId = ((dynamic)result).Id;
+
+                // AI Detection (if enabled)
+                if (aiDetector != null)
+                {
+                    try
+                    {
+                        var aiResult = await aiDetector.AnalyzeVideoAsync(f);
+                        if (aiResult != null && aiResult.Success)
+                        {
+                            await using var dbAI = await dbFactory.CreateDbContextAsync();
+                            var mediaFile = await dbAI.MediaFiles.FindAsync(mediaId);
+                            if (mediaFile != null)
+                            {
+                                bool aiChanged = false;
+                                var aiInfo = new List<string>();
+
+                                // Update performer count if detected
+                                if (aiResult.PerformerCount.HasValue && !mediaFile.PerformerCount.HasValue)
+                                {
+                                    mediaFile.PerformerCount = aiResult.PerformerCount.Value;
+                                    aiChanged = true;
+                                    var label = aiResult.PerformerCount.Value == 1 ? "Solo" : aiResult.PerformerCount.Value == 2 ? "Duo" : "Group";
+                                    aiInfo.Add($"Performers: {label} ({aiResult.PerformerCount.Value})");
+                                }
+
+                                // Update OnlyFans info if detected
+                                if (aiResult.OnlyFansDetected && !string.IsNullOrWhiteSpace(aiResult.OnlyFansUsername))
+                                {
+                                    if (string.IsNullOrWhiteSpace(mediaFile.SourceUsername))
+                                    {
+                                        mediaFile.SourceUsername = aiResult.OnlyFansUsername;
+                                        aiChanged = true;
+                                    }
+
+                                    // Add OnlyFans to source types if not already present
+                                    var srcTypes = mediaFile.SourceTypes ?? new List<string>();
+                                    if (!srcTypes.Contains("OnlyFans", StringComparer.OrdinalIgnoreCase))
+                                    {
+                                        srcTypes = new List<string>(srcTypes) { "OnlyFans", "Amateur" };
+                                        mediaFile.SourceTypes = srcTypes.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                                        aiChanged = true;
+                                    }
+                                    aiInfo.Add($"OnlyFans: @{aiResult.OnlyFansUsername}");
+                                }
+
+                                if (aiChanged)
+                                {
+                                    mediaFile.UpdatedAt = DateTimeOffset.UtcNow;
+                                    await dbAI.SaveChangesAsync(ct);
+                                    Interlocked.Increment(ref aiDetected);
+
+                                    // Send AI detection log
+                                    await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new
+                                    {
+                                        kind = "aiDetection",
+                                        file = Path.GetFileName(f),
+                                        details = string.Join(", ", aiInfo)
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception aiEx)
+                    {
+                        Console.WriteLine($"AI Detection failed for {Path.GetFileName(f)}: {aiEx.Message}");
+                        await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new
+                        {
+                            kind = "aiError",
+                            file = Path.GetFileName(f),
+                            error = aiEx.Message
+                        });
+                    }
+                }
+
+                // Regular auto-tagging
+                if (doAutoTag)
+                {
+                    await using var dbTag = await dbFactory.CreateDbContextAsync();
+                    var mediaFile = await dbTag.MediaFiles.FindAsync(mediaId);
+                    if (mediaFile != null && AutoTagger.Apply(mediaFile, dryRun: false))
+                    {
+                        await dbTag.SaveChangesAsync(ct);
+                        Interlocked.Increment(ref tagged);
+                    }
+                }
+
+                // Generate multi-thumbnails (5 WebP images) - with retry for database locks
+                bool thumbSuccess = false;
+                for (int thumbRetry = 0; thumbRetry < 3; thumbRetry++)
+                {
+                    try
+                    {
+                        await using var dbThumb = await dbFactory.CreateDbContextAsync();
+                        var (thumbOk, thumbErr) = await ThumbnailGenerator.GenerateMultiThumbnailsAsync(dbThumb, f, width: 320, webpQuality: 80);
+                        if (thumbOk)
+                        {
+                            thumbSuccess = true;
+                            Interlocked.Increment(ref thumbsCreated);
+                            break; // Success
+                        }
+                        if (thumbRetry == 2) Console.WriteLine($"Thumbnail generation failed for {Path.GetFileName(f)}: {thumbErr}");
+                    }
+                    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 5)
+                    {
+                        // Database locked, wait and retry
+                        if (thumbRetry < 2) await Task.Delay(100 * (thumbRetry + 1)); // 100ms, 200ms
+                        else Console.WriteLine($"Thumbnail generation failed after retries for {Path.GetFileName(f)}: Database locked");
+                    }
+                    catch (Exception thumbEx)
+                    {
+                        Console.WriteLine($"Thumbnail generation failed for {Path.GetFileName(f)}: {thumbEx.Message}");
+                        break;
+                    }
+                }
+
+                // Send progress update for this file
+                var curDone = Interlocked.Increment(ref done);
+                await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new
+                {
+                    kind = "fileCompleted",
+                    file = Path.GetFileName(f),
+                    processed = curDone,
+                    indexed,
+                    tagged,
+                    aiDetected,
+                    thumbsCreated,
+                    errors,
+                    elapsedMs = sw.ElapsedMilliseconds
+                });
+            }
+            else
+            {
+                Interlocked.Increment(ref errors);
+                await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "indexError", file = Path.GetRelativePath(root.Path, f), error = err });
+            }
         });
         sw.Stop();
-        await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "completed", processed = done, indexed, tagged, errors, elapsedMs = sw.ElapsedMilliseconds });
+        await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "completed", processed = done, indexed, tagged, aiDetected, thumbsCreated, errors, elapsedMs = sw.ElapsedMilliseconds });
     }
     catch (OperationCanceledException) { await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "cancelled" }); }
     finally { ScanManager.ActiveScans.TryRemove(scanId, out _); }
@@ -210,7 +371,8 @@ app.MapPost("/api/media/generate-missing-thumbnails", (IHubContext<ScanHub> hub,
             await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "started", root = new { Name = "Entire Library" }, totals = new { files = total } });
             await Parallel.ForEachAsync(filesMissingThumbs, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cts.Token }, async (path, token) =>
             {
-                var (thumbOk, _, _) = await Indexer.GenerateThumbnailWithFactoryAsync(dbFactory, path, 28, 5, 320, 85, onlyIfMissing: true);
+                await using var dbThumb = await dbFactory.CreateDbContextAsync();
+                var (thumbOk, err) = await ThumbnailGenerator.GenerateMultiThumbnailsAsync(dbThumb, path, width: 320, webpQuality: 80);
                 if (thumbOk) Interlocked.Increment(ref thumbsMade);
                 Interlocked.Increment(ref done);
                 await hub.Clients.Group($"scan:{scanId}").SendAsync("progress", new { kind = "heartbeat", processed = done, thumbsMade });
@@ -366,12 +528,26 @@ app.MapGet("/api/media/{id:int}/stream", async (int id, IDbContextFactory<VideoI
     return Results.File(path, contentType, enableRangeProcessing: true);
 });
 
-app.MapGet("/api/media/{id:int}/thumb", async (IDbContextFactory<VideoIndexDbContext> dbFactory, int id) =>
+app.MapGet("/api/media/{id:int}/thumb", async (IDbContextFactory<VideoIndexDbContext> dbFactory, int id, int? sequence) =>
 {
     await using var db = await dbFactory.CreateDbContextAsync();
-    var jpeg = await db.Thumbnails.Where(t => t.MediaFileId == id).OrderByDescending(t => t.Id).Select(t => t.Jpeg).FirstOrDefaultAsync();
-    if (jpeg == null) return Results.NotFound();
-    return Results.File(jpeg, "image/jpeg");
+
+    // Get specific thumbnail by sequence number, or default to first one
+    var thumb = sequence.HasValue
+        ? await db.Thumbnails.Where(t => t.MediaFileId == id && t.SequenceNumber == sequence.Value).FirstOrDefaultAsync()
+        : await db.Thumbnails.Where(t => t.MediaFileId == id).OrderBy(t => t.SequenceNumber).FirstOrDefaultAsync();
+
+    if (thumb == null) return Results.NotFound();
+
+    var contentType = thumb.Format == "webp" ? "image/webp" : "image/jpeg";
+    return Results.File(thumb.Jpeg, contentType);
+});
+
+app.MapGet("/api/media/{id:int}/thumbs/all", async (IDbContextFactory<VideoIndexDbContext> dbFactory, int id) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var count = await db.Thumbnails.Where(t => t.MediaFileId == id).CountAsync();
+    return Results.Ok(new { count, sequences = Enumerable.Range(0, Math.Max(count, 0)).ToList() });
 });
 
 app.MapPost("/api/media/{id:int}/autotag", async (int id, bool? dryRun, IDbContextFactory<VideoIndexDbContext> dbFactory) =>
