@@ -247,48 +247,49 @@
         OrientationTags: it.OrientationTags ?? it.orientationTags ?? [],
         OtherTags: it.OtherTags ?? it.otherTags ?? [],
 
-        StudioName: it.StudioName ?? it.studioName,
+        StudioName: it.StudioName 
+        ?? it.studioName,
         UpdatedAt: it.UpdatedAt ?? it.updatedAt,
         Thumb: it.Thumb ?? it.thumb
-      });
+    });
 
     const escapeHtml = s => (s ?? "").toString().replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
 
     function card(raw) {
-        const item = norm(raw);
-        const titleOrFile = item.Title || item.Filename;
-        const res = (item.Width && item.Height) ? `${item.Width}×${item.Height}` : "—";
-        const len = item.LengthHuman ?? "—";
-        const favIcon = item.IsFavourite ? ' <span class="fav-star">⭐️</span>' : '';
-        const statsHtml = `<span class="chip meta">${escapeHtml(item.SizeHuman)}</span> <span class="chip meta">${len}</span> <span class="chip meta">${res}</span>`;
-        // --- Build the tags line ---
-                const pc = item.PerformerCount;
-        const perfBadge = (pc === 1) ? "Solo" : (pc === 2) ? "Duo" : (pc >= 3) ?
-        "Group" : "";
-                
-        const tags = [];
-        if (perfBadge) {
-                    tags.push(`<span class="chip perf clickable" data-min="${pc}" data-max="${pc}">${perfBadge}</span>`);
-        }
-                (item.OrientationTags || []).forEach(t => {
-                    tags.push(`<span class="chip ori clickable" data-ori="${escapeHtml(t)}">${escapeHtml(t)}</span>`);
-                });
-        (item.SourceTypes || []).forEach(t => {
-                    tags.push(`<span class="chip src clickable" data-src="${escapeHtml(t)}">${escapeHtml(t)}</span>`);
-                });
-        // Combine all tags into a single meta div, but only if there are any tags.
-        const tagHtml = tags.length > 0 ? `<div class="meta">${tags.join(" ")}</div>` : "";
-        return `<a class="library-card" href="/media/${item.Id}">
-                            <div class="thumb-container">
-                                <img class="thumb-bg" src="${item.Thumb}" alt="" loading="lazy">
-                                <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
-                          
-        </div>
-                            <div class="title"><span class="title-text">${escapeHtml(titleOrFile)}</span>${favIcon}</div>
-                            <div class="meta">${statsHtml}</div>
-                            ${tagHtml}
-                        </a>`;
-        }
+    const item = norm(raw);
+    const titleOrFile = item.Title || item.Filename;
+    const res = (item.Width && item.Height) ? `${item.Width}×${item.Height}` : "—";
+    const len = item.LengthHuman ?? "—";
+    const statsHtml = `<span class="chip meta">${escapeHtml(item.SizeHuman)}</span> <span class="chip meta">${len}</span> <span class="chip meta">${res}</span>`;
+    const pc = item.PerformerCount;
+    const perfBadge = (pc === 1) ? "Solo" : (pc === 2) ? "Duo" : (pc >= 3) ? "Group" : "";
+    const tags = [];
+    if (perfBadge) {
+        tags.push(`<span class="chip perf clickable" data-min="${pc}" data-max="${pc}">${perfBadge}</span>`);
+    }
+    (item.OrientationTags || []).forEach(t => {
+        tags.push(`<span class="chip ori clickable" data-ori="${escapeHtml(t)}">${escapeHtml(t)}</span>`);
+    });
+    (item.SourceTypes || []).forEach(t => {
+        tags.push(`<span class="chip src clickable" data-src="${escapeHtml(t)}">${escapeHtml(t)}</span>`);
+    });
+    const tagHtml = tags.length > 0 ? `<div class="meta">${tags.join(" ")}</div>` : "";
+
+    // Badge overlay on the thumbnail (not in the title)
+    const favBadge = item.IsFavourite ? `<div class="thumb-badge" title="Favourite">⭐️</div>` : "";
+
+    return `<a class="library-card" href="/media/${item.Id}">
+                <div class="thumb-container">
+                    <img class="thumb-bg" src="${item.Thumb}" alt="" loading="lazy">
+                    <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
+                    ${favBadge}
+                </div>
+                <div class="title"><span class="title-text">${escapeHtml(titleOrFile)}</span></div>
+                <div class="meta">${statsHtml}</div>
+                ${tagHtml}
+            </a>`;
+}
+
 
     function updateCounts(shownAdd) {
         const shown = skip + (shownAdd || 0);
@@ -415,7 +416,7 @@
             source: [...srcSel], orientation: [...oriSel],
             minPerformers: $("#minPerf").value.trim() || null, maxPerformers: $("#maxPerf").value.trim() || null,
             sort: $("#sortSel").value, q: ($("#searchBox").value ?? "").trim() || null,
-            favOnly: $("#favOnly").checked,
+            favouritesOnly: $("#favOnly").checked,
             skip: resetSkip ? 0 : skip
         });
         $$("#srcGroup .tagbtn").forEach(b => b.classList.toggle("on", srcSel.has(b.dataset.src)));

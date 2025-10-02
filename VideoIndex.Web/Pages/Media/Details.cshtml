@@ -20,9 +20,20 @@
 }
 
 @await Html.PartialAsync("_TopNav")
-
-<h1>@(m.Title ?? m.Filename)</h1>
-<div id="summaryChips" class="hstack" style="margin:.5rem 0 1rem; gap: 0.4rem;"></div>
+<div id ="sticky-header">
+  <div class="title-container" style="display: flex; align-items: center; gap: 0.5rem;">
+      <button id="favToggleBtn" class="fav-toggle-btn" title="Toggle Favourite">
+          <svg class="star-icon star-filled" style="display: @(m.IsFavourite ? "block" : "none");" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 .587l3.668 7.568L24 9.748l-6 5.845L19.336 24 12 19.897 4.664 24 6 15.593l-6-5.845 8.332-1.593L12 .587z"/>
+          </svg>
+          <svg class="star-icon star-empty" style="display: @(m.IsFavourite ? "none" : "block");" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 .587l3.668 7.568L24 9.748l-6 5.845L19.336 24 12 19.897 4.664 24 6 15.593l-6-5.845 8.332-1.593L12 .587z"/>
+          </svg>
+      </button>
+      <h1>@(m.Title ?? m.Filename)</h1>
+  </div>
+  <div id="summaryChips" class="hstack" style="margin-top: .5rem; gap: 0.4rem;"></div>
+</div>
 
 <div id="vi_meta"
      data-parent-dir="@System.IO.Path.GetDirectoryName(m.Path)"
@@ -185,14 +196,6 @@
             <div class="muted">Press <b>,</b> or <b>Enter</b> to commit a name.</div>
           </div>
         </div>
-
-        <div class="field" style="margin-top: 1rem; border-top: 1px solid #ddd; padding-top: 1rem;">
-             <label class="hstack" style="font-weight:normal; cursor:pointer;">
-                <input id="isFavourite" type="checkbox" @(m.IsFavourite ? "checked" : "") />
-                <span>Mark as Favourite ⭐️</span>
-            </label>
-        </div>
-
       </div>
     </details>
   </div>
@@ -289,6 +292,42 @@
     }
     function refreshSuggestions(){ fill("studio", "dl-studio"); fill("other", "dl-other"); fill("performers", "dl-performers"); }
 
+    // --- Favourite Toggle ---
+const favToggleBtn = $("#favToggleBtn");
+if (favToggleBtn) {
+    const starFilled = favToggleBtn.querySelector('.star-filled');
+    const starEmpty = favToggleBtn.querySelector('.star-empty');
+
+    favToggleBtn.addEventListener("click", async () => {
+        const isCurrentlyFavourite = starFilled.style.display !== 'none';
+        const newFavouriteState = !isCurrentlyFavourite;
+
+        try {
+            const resp = await fetch(`/api/media/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isFavourite: newFavouriteState })
+            });
+
+            if (!resp.ok) {
+                throw new Error(await resp.text() || `HTTP ${resp.status}`);
+            }
+
+            // Update UI
+            starFilled.style.display = newFavouriteState ? 'block' : 'none';
+            starEmpty.style.display = newFavouriteState ? 'none' : 'block';
+            $isFavouriteState = newFavouriteState;
+            showStatus(newFavouriteState ? "Added to Favourites" : "Removed from Favourites", { autohide: true, delay: 1500 });
+
+            // Mark the form as dirty so the main save button reflects the change
+            markDirty();
+
+        } catch (e) {
+            showStatus("Error: " + (e?.message || String(e)));
+        }
+    });
+}
+
     // State
     const srcAllowed = ["Studio","OnlyFans","Amateur","Vintage","Webcam","Spycam","CCTV","Selfie","Social Media","Animated","Unknown"];
     const oriAllowed = ["Gay","Straight","Bi","FtM Trans","MtF Trans"];
@@ -296,6 +335,7 @@
     let orientationSel = new Set(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(initOri)));
     let otherTagsArr = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initOther));
     let performersArr = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(initPerf));
+    let isFavouriteState = @m.IsFavourite.ToString().ToLower();
     // Utils
     function badgeFromCount(pc){ if(pc===1) return "Solo"; if(pc===2) return "Duo"; if(pc>=3) return "Group"; return "n/a"; }
     function normToken(s){ return s.trim().replace(/\s+/g,' '); }
@@ -324,7 +364,7 @@
       const pcV = ($("#performerCount").value || "").trim();
       return {
         title: ($("#title").value || "").trim() || null,
-        isFavourite: $("#isFavourite").checked,
+        isFavourite: isFavouriteState,
         sourceTypes: [...sourceTypesSel].slice().sort(),
         orientationTags: [...orientationSel].slice().sort(),
         otherTags: otherTagsArr.map(normToken).filter(Boolean).slice().sort(),
@@ -591,7 +631,7 @@
       if (sourceTypesSel.has(val)) sourceTypesSel.delete(val); else sourceTypesSel.add(val);
       renderTagButtons(); renderSummary(); updateConditionals(); markDirty();
     });
-    ["#year","#studioName","#sourceUser", "#title", "#isFavourite"].forEach(sel => { const el = document.querySelector(sel); el?.addEventListener("change", () => { renderSummary(); markDirty(); }); });
+    ["#year","#studioName","#sourceUser", "#title"].forEach(sel => { const el = document.querySelector(sel); el?.addEventListener("change", () => { renderSummary(); markDirty(); }); });
     const otherInput = $("#otherTagsInput");
     otherInput.addEventListener("keydown", (e)=>{
       if (e.key === "," || e.key === "Enter") {
@@ -623,7 +663,7 @@
       statusEl.textContent = "saving…";
       const dto = {
         title: ($("#title").value || "").trim() || null,
-        isFavourite: $("#isFavourite").checked,
+        isFavourite: isFavouriteState,
         sourceTypes: Array.from(sourceTypesSel),
         studioName: ($("#studioName").value || "").trim() || null,
         sourceUsername: ($("#sourceUser").value || "").trim() || null,

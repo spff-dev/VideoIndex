@@ -260,7 +260,7 @@ main.page {
 }
 .library-card .fav-star {
   flex: 0 0 auto;
-  font-size: 0.95em;
+  font-size: 1.4em;
   vertical-align: middle;
 }
 
@@ -274,8 +274,8 @@ main.page {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: rgba(255, 215, 0, 0.95); /* gold */
   color: #111;
@@ -285,7 +285,15 @@ main.page {
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   pointer-events: none; /* don't block clicks on the thumbnail link */
-  z-index: 2;
+  z-index: 3;
+}
+.library-card .thumb-badge,
+.library-card .fav-star {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .tagbtn {
@@ -916,4 +924,53 @@ details.kv .kv-body {
 /* === ASPECT RATIO TOGGLE === */
 .player-box.aspect-1-1 {
   aspect-ratio: 1/1;
+}
+/* === Favourite Toggle on Details Page === */
+.fav-toggle-icon {
+  font-size: 1.75rem; /* Make the star bigger */
+  cursor: pointer;
+  user-select: none; /* Prevent text selection */
+  transition: transform 0.1s ease-in-out;
+}
+
+.fav-toggle-icon:hover {
+  transform: scale(1.15); /* A little pop on hover */
+}
+/* === Favourite Toggle on Details Page === */
+.fav-toggle-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex; /* Helps with alignment */
+  align-items: center;
+  justify-content: center;
+}
+
+.fav-toggle-btn .star-icon {
+  width: 28px; /* Set a fixed size */
+  height: 28px;
+  transition: transform 0.1s ease-in-out;
+}
+
+.fav-toggle-btn:hover .star-icon {
+  transform: scale(1.15); /* A little pop on hover */
+}
+
+.fav-toggle-btn .star-filled {
+  color: #ffc107; /* A nice gold/yellow color */
+}
+
+.fav-toggle-btn .star-empty {
+  color: #6c757d; /* A neutral grey color */
+}
+/* === Sticky Header on Details Page === */
+#sticky-header {
+  position: -webkit-sticky; /* For Safari */
+  position: sticky;
+  top: 20px; /* Aligns it just below the main topnav */
+  background-color: #f8f9fa; /* Matches the page background */
+  z-index: 4; /* Ensures it stays above other content but below the main nav */
+  padding: 1rem 0;
+  margin-bottom: 1rem;
 }
