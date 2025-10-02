@@ -72,6 +72,71 @@ app.MapDelete("/api/roots/{id:int}", async (int id, IDbContextFactory<VideoIndex
     return Results.Ok(new { deleted = true });
 });
 
+app.MapGet("/api/roots/export", async (IDbContextFactory<VideoIndexDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var roots = await db.ScanRoots.OrderBy(r => r.Id).Select(r => new { r.Name, r.Path }).ToListAsync();
+    var json = JsonSerializer.Serialize(roots, new JsonSerializerOptions { WriteIndented = true });
+    return Results.Text(json, "application/json", System.Text.Encoding.UTF8);
+});
+
+app.MapPost("/api/roots/import", async (IDbContextFactory<VideoIndexDbContext> dbFactory, HttpRequest request) =>
+{
+    if (!request.HasFormContentType) return Results.BadRequest("Must use multipart/form-data");
+    var form = await request.ReadFormAsync();
+    var file = form.Files.GetFile("file");
+    if (file is null || file.Length == 0) return Results.BadRequest("No file uploaded");
+
+    try
+    {
+        using var stream = file.OpenReadStream();
+        using var reader = new StreamReader(stream);
+        var json = await reader.ReadToEndAsync();
+        var roots = JsonSerializer.Deserialize<List<ImportRootDto>>(json);
+
+        if (roots is null || roots.Count == 0) return Results.BadRequest("Invalid or empty JSON file");
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        int added = 0, skipped = 0;
+
+        foreach (var dto in roots)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Path))
+            {
+                skipped++;
+                continue;
+            }
+
+            var exists = await db.ScanRoots.AnyAsync(r => r.Path == dto.Path.Trim());
+            if (exists)
+            {
+                skipped++;
+                continue;
+            }
+
+            db.ScanRoots.Add(new ScanRoot
+            {
+                Name = dto.Name.Trim(),
+                Path = dto.Path.Trim(),
+                LastScannedAt = null
+            });
+            added++;
+        }
+
+        if (added > 0) await db.SaveChangesAsync();
+
+        return Results.Ok(new { imported = added, skipped, total = roots.Count });
+    }
+    catch (JsonException)
+    {
+        return Results.BadRequest("Invalid JSON format");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Error importing roots: {ex.Message}");
+    }
+});
+
 // Scanning & Maintenance
 app.MapGet("/api/roots/{id:int}/scan-dry-run", async (int id, IDbContextFactory<VideoIndexDbContext> dbFactory) =>
 {
@@ -399,6 +464,7 @@ app.Run();
 // ---------- DTOs & helpers ----------
 public static class ScanManager { public static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CancellationTokenSource> ActiveScans = new(); }
 public record RootDto(string Name, string Path);
+public record ImportRootDto(string Name, string Path);
 public record UpdateMediaDto(string? Title, bool? IsFavourite, string[]? SourceTypes, string? StudioName, string? SourceUsername, int? Year, string[]? OrientationTags, string? OtherTags, string? Performers, int? PerformerCount, string? Orientation, string? Type, string? Studio, string? WebsiteSource);
 public record BatchDeleteDto(List<int> Ids, bool? DeleteFile);
 static class Proc { public static async Task<(int exitCode, string stdout, string stderr)> RunAsync(string exe, string args, TimeSpan timeout) { var psi = new ProcessStartInfo { FileName = exe, Arguments = args, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true }; using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true }; proc.Start(); var stdoutTask = proc.StandardOutput.ReadToEndAsync(); var stderrTask = proc.StandardError.ReadToEndAsync(); if (!proc.WaitForExit((int)timeout.TotalMilliseconds)) { try { proc.Kill(true); } catch { } return (-1, "", "Timed out"); } var stdout = await stdoutTask; var stderr = await stderrTask; return (proc.ExitCode, stdout, stderr); } }

@@ -8,6 +8,15 @@
 <h1>Roots</h1>
 <p class="muted">Add one or more folders to scan. The scanner will recurse inside them.</p>
 
+<div style="display:flex; gap:8px; margin:10px 0;">
+  <button id="exportBtn" class="btn ghost" type="button">📥 Export Roots</button>
+  <label class="btn ghost" style="cursor:pointer;">
+    📤 Import Roots
+    <input id="importFile" type="file" accept=".json" style="display:none;" />
+  </label>
+  <div id="importStatus" class="muted" style="margin-left:8px; align-self:center;"></div>
+</div>
+
 <div class="card" style="padding:12px; margin:10px 0 16px;">
   <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:end;">
     <div>
@@ -117,6 +126,64 @@
       load();
     }catch(e){
       addErr.textContent = "Add failed: " + (e.message || e);
+    }
+  });
+
+  // Export functionality
+  $("#exportBtn").addEventListener("click", async ()=>{
+    try{
+      const res = await fetch("/api/roots/export");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `roots-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }catch(e){
+      alert("Export failed: " + (e.message || e));
+    }
+  });
+
+  // Import functionality
+  const importStatus = $("#importStatus");
+  $("#importFile").addEventListener("change", async (e)=>{
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    importStatus.textContent = "Importing...";
+    importStatus.style.color = "#666";
+    
+    try{
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const res = await fetch("/api/roots/import", {
+        method: "POST",
+        body: formData
+      });
+      
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+      
+      const result = await res.json();
+      importStatus.textContent = `✓ Imported ${result.imported} root(s), skipped ${result.skipped} (already exist or invalid)`;
+      importStatus.style.color = "#080";
+      
+      // Clear the status after 5 seconds
+      setTimeout(()=> importStatus.textContent = "", 5000);
+      
+      // Reload the list
+      load();
+    }catch(e){
+      importStatus.textContent = "✗ Import failed: " + (e.message || e);
+      importStatus.style.color = "#c00";
+    }finally{
+      // Clear the file input so the same file can be selected again
+      e.target.value = "";
     }
   });
 
