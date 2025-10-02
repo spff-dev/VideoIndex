@@ -29,10 +29,12 @@ namespace VideoIndex.Core.Models
         public int? AudioChannels { get; set; }
 
         // EDITABLE FIELDS (tag-style)
-        public List<string>? SourceTypes { get; set; }          // e.g. Studio, OnlyFans, Amateur, ...
-        public string? StudioName { get; set; }                 // free text (suggestions)
-        public List<string>? OrientationTags { get; set; }      // e.g. Gay, Straight, Bi, FtM Trans, MtF Trans
-        public List<string>? OtherTags { get; set; }            // arbitrary tags (comma sep in UI)
+        public string? Title { get; set; }                  // New Title field
+        public bool IsFavourite { get; set; }               // New Favourite flag
+        public List<string>? SourceTypes { get; set; }      // e.g. Studio, OnlyFans, Amateur, ...
+        public string? StudioName { get; set; }             // free text (suggestions)
+        public List<string>? OrientationTags { get; set; }  // e.g. Gay, Straight, Bi, FtM Trans, MtF Trans
+        public List<string>? OtherTags { get; set; }        // arbitrary tags (comma sep in UI)
 
         public int? Year { get; set; }
         public string? SourceUsername { get; set; }

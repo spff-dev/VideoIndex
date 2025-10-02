@@ -33,6 +33,8 @@ namespace VideoIndex.Web.Pages.Media
             Item = new VM
             {
                 Id = m.Id,
+                Title = m.Title,
+                IsFavourite = m.IsFavourite,
                 Filename = m.Filename,
                 Path = m.Path,
                 Extension = m.Extension,
@@ -96,6 +98,8 @@ namespace VideoIndex.Web.Pages.Media
         public class VM
         {
             public int Id { get; set; }
+            public string? Title { get; set; }
+            public bool IsFavourite { get; set; }
             public string Filename { get; set; } = "";
             public string Path { get; set; } = "";
             public string? Extension { get; set; }

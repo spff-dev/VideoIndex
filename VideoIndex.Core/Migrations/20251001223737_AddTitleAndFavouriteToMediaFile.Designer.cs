@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VideoIndex.Core.Data;
 
@@ -10,9 +11,11 @@ using VideoIndex.Core.Data;
 namespace VideoIndex.Core.Migrations
 {
     [DbContext(typeof(VideoIndexDbContext))]
-    partial class VideoIndexDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251001223737_AddTitleAndFavouriteToMediaFile")]
+    partial class AddTitleAndFavouriteToMediaFile
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.20");
