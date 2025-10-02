@@ -173,7 +173,7 @@
 
     function setParams(updates) {
         const u = new URL(location.href);
-        ["source", "orientation", "minPerformers", "maxPerformers", "sort", "skip", "q", "sourceLogic", "favOnly"].forEach(k => u.searchParams.delete(k));
+        ["source", "orientation", "minPerformers", "maxPerformers", "sort", "skip", "q", "sourceLogic", "favouritesOnly"].forEach(k => u.searchParams.delete(k));
         for (const [k, v] of Object.entries(updates)) {
             if (v === null || v === undefined || v === "" || v === false || (Array.isArray(v) && v.length === 0)) continue;
             u.searchParams.set(k, Array.isArray(v) ? v.join(",") : String(v));
@@ -220,7 +220,7 @@
         $("#minPerf").value = sp.get("minPerformers") || "";
         $("#maxPerf").value = sp.get("maxPerformers") || "";
         $("#sortSel").value = sp.get("sort") || "updated_desc";
-        $("#favOnly").checked = sp.get("favOnly") === 'true';
+        $("#favOnly").checked = sp.get("favouritesOnly") === 'true';
         skip = parseInt(sp.get("skip") || "0", 10);
         if (Number.isNaN(skip) || skip < 0) skip = 0;
         $("#searchBox").value = sp.get("q") || "";
@@ -230,13 +230,27 @@
     }
 
     const norm = it => ({
-        Id: it.Id ?? it.id, Filename: it.Filename ?? it.filename, Title: it.Title ?? it.title, IsFavourite: it.IsFavourite ?? it.isFavourite, SizeHuman: it.SizeHuman ?? it.sizeHuman,
-        LengthHuman: it.LengthHuman ?? it.lengthHuman, LengthSeconds: it.LengthSeconds ?? it.lengthSeconds,
-        Width: it.Width ?? it.width, Height: it.Height ?? it.height, Year: it.Year ?? it.year,
-        PerformerCount: it.PerformerCount ?? it.performerCount, SourceTypes: it.SourceTypes ?? [],
-        OrientationTags: it.OrientationTags ?? [], OtherTags: it.OtherTags ?? [], StudioName: it.StudioName ?? it.studioName,
-        UpdatedAt: it.UpdatedAt ?? it.updatedAt, Thumb: it.Thumb ?? it.thumb
-    });
+        Id: it.Id ?? it.id,
+        Filename: it.Filename ?? it.filename,
+        Title: it.Title ?? it.title,
+        IsFavourite: it.IsFavourite ?? it.isFavourite ?? false,
+        SizeHuman: it.SizeHuman ?? it.sizeHuman,
+        LengthHuman: it.LengthHuman ?? it.lengthHuman,
+        LengthSeconds: it.LengthSeconds ?? it.lengthSeconds,
+        Width: it.Width ?? it.width,
+        Height: it.Height ?? it.height,
+        Year: it.Year ?? it.year,
+        PerformerCount: it.PerformerCount ?? it.performerCount,
+
+        // ↓ add the camelCase fallbacks
+        SourceTypes: it.SourceTypes ?? it.sourceTypes ?? [],
+        OrientationTags: it.OrientationTags ?? it.orientationTags ?? [],
+        OtherTags: it.OtherTags ?? it.otherTags ?? [],
+
+        StudioName: it.StudioName ?? it.studioName,
+        UpdatedAt: it.UpdatedAt ?? it.updatedAt,
+        Thumb: it.Thumb ?? it.thumb
+      });
 
     const escapeHtml = s => (s ?? "").toString().replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
 
@@ -246,37 +260,35 @@
         const res = (item.Width && item.Height) ? `${item.Width}×${item.Height}` : "—";
         const len = item.LengthHuman ?? "—";
         const favIcon = item.IsFavourite ? ' <span class="fav-star">⭐️</span>' : '';
-        
-        const statsHtml = `<span class="chip meta">${escapeHtml(item.SizeHuman)}</span> <span class="chip meta">Len: ${len}</span> <span class="chip meta">Res: ${res}</span>`;
-
+        const statsHtml = `<span class="chip meta">${escapeHtml(item.SizeHuman)}</span> <span class="chip meta">${len}</span> <span class="chip meta">${res}</span>`;
         // --- Build the tags line ---
-        const pc = item.PerformerCount;
-        const perfBadge = (pc === 1) ? "Solo" : (pc === 2) ? "Duo" : (pc >= 3) ? "Group" : "";
-        
+                const pc = item.PerformerCount;
+        const perfBadge = (pc === 1) ? "Solo" : (pc === 2) ? "Duo" : (pc >= 3) ?
+        "Group" : "";
+                
         const tags = [];
         if (perfBadge) {
-            tags.push(`<span class="chip perf clickable" data-min="${pc}" data-max="${pc}">${perfBadge}</span>`);
+                    tags.push(`<span class="chip perf clickable" data-min="${pc}" data-max="${pc}">${perfBadge}</span>`);
         }
-        (item.OrientationTags || []).forEach(t => {
-            tags.push(`<span class="chip ori clickable" data-ori="${escapeHtml(t)}">${escapeHtml(t)}</span>`);
-        });
+                (item.OrientationTags || []).forEach(t => {
+                    tags.push(`<span class="chip ori clickable" data-ori="${escapeHtml(t)}">${escapeHtml(t)}</span>`);
+                });
         (item.SourceTypes || []).forEach(t => {
-            tags.push(`<span class="chip src clickable" data-src="${escapeHtml(t)}">${escapeHtml(t)}</span>`);
-        });
-
+                    tags.push(`<span class="chip src clickable" data-src="${escapeHtml(t)}">${escapeHtml(t)}</span>`);
+                });
         // Combine all tags into a single meta div, but only if there are any tags.
         const tagHtml = tags.length > 0 ? `<div class="meta">${tags.join(" ")}</div>` : "";
-        
         return `<a class="library-card" href="/media/${item.Id}">
-                    <div class="thumb-container">
-                        <img class="thumb-bg" src="${item.Thumb}" alt="" loading="lazy">
-                        <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
-                    </div>
-                    <div class="title">${escapeHtml(titleOrFile)}${favIcon}</div>
-                    <div class="meta">${statsHtml}</div>
-                    ${tagHtml}
-                </a>`;
-    }
+                            <div class="thumb-container">
+                                <img class="thumb-bg" src="${item.Thumb}" alt="" loading="lazy">
+                                <img class="thumb" src="${item.Thumb}" alt="thumb" loading="lazy" onerror="this.style.display='none'">
+                          
+        </div>
+                            <div class="title"><span class="title-text">${escapeHtml(titleOrFile)}</span>${favIcon}</div>
+                            <div class="meta">${statsHtml}</div>
+                            ${tagHtml}
+                        </a>`;
+        }
 
     function updateCounts(shownAdd) {
         const shown = skip + (shownAdd || 0);
@@ -364,7 +376,7 @@
         const params = new URLSearchParams({ sourceLogic });
         const q = ($("#searchBox").value ?? "").trim();
         if (q) params.set("q", q);
-        if ($("#favOnly").checked) params.set("favOnly", "true");
+        if ($("#favOnly").checked) params.set("favouritesOnly", "true");
         if (srcSel.size) params.set("source", [...srcSel].join(","));
         if (oriSel.size) params.set("orientation", [...oriSel].join(","));
         const minP = $("#minPerf").value.trim(); if (minP) params.set("minPerformers", minP);
